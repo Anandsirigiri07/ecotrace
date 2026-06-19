@@ -46,13 +46,18 @@ export function Insights() {
       .reduce((sum, act) => sum + act.co2Kg, 0);
   }, [activities]);
 
-  // Generate the plan on load
+  // Generate the plan on load using primitive signatures to prevent referential trigger loops
+  const activitiesLength = activities.length;
+  const lastActivityId = activities[0]?.id || '';
+  const gridIntensity = liveData.gridIntensity;
+  const weatherTemp = liveData.weather?.temp || 0;
+
   useEffect(() => {
     if (user && profile) {
       generatePlan(user.uid, activities, liveData, profile);
       trackEvent.insightViewed(plan?.ecoScore || 0);
     }
-  }, [user, profile, activities, liveData]);
+  }, [user?.uid, profile, activitiesLength, lastActivityId, gridIntensity, weatherTemp]);
 
   // Pre-loaded chips questions
   const suggestionChips = [

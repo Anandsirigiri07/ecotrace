@@ -135,13 +135,28 @@ export const useCarbon = (userId?: string | null) => {
       };
     }
     
-    // Sanitize input
-    if (activityData.co2Kg < 0) {
-      throw new Error('CO2 value cannot be negative');
+    // Strict input type & bounds validation
+    const allowedCategories = ['transport', 'food', 'energy', 'shopping'];
+    if (!allowedCategories.includes(activityData.category)) {
+      throw new Error('Invalid activity category');
     }
-    if (activityData.quantity <= 0) {
-      throw new Error('Quantity must be greater than 0');
+
+    if (typeof activityData.co2Kg !== 'number' || !Number.isFinite(activityData.co2Kg) || activityData.co2Kg < 0) {
+      throw new Error('CO2 value must be a valid non-negative number');
     }
+    if (typeof activityData.quantity !== 'number' || !Number.isFinite(activityData.quantity) || activityData.quantity <= 0) {
+      throw new Error('Quantity must be a valid positive number');
+    }
+
+    // Sanitize string inputs to prevent XSS/HTML injections
+    const sanitizeString = (str: string) => {
+      if (!str) return '';
+      return str.replace(/<[^>]*>/g, '').trim();
+    };
+
+    activityData.activityType = sanitizeString(activityData.activityType);
+    activityData.unit = sanitizeString(activityData.unit);
+    activityData.geminiTip = sanitizeString(activityData.geminiTip);
     
     const userActivitiesRef = collection(
       db,

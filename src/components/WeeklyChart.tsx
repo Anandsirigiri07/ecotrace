@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -15,8 +15,8 @@ interface WeeklyChartProps {
 }
 
 export function WeeklyChart({ activities }: WeeklyChartProps) {
-  // 1. Generate last 7 days arrays (including today)
-  const getPast7Days = () => {
+  const chartData = useMemo(() => {
+    // 1. Generate last 7 days arrays (including today)
     const list = [];
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     
@@ -35,22 +35,19 @@ export function WeeklyChart({ activities }: WeeklyChartProps) {
         rawDate: d,
       });
     }
-    return list;
-  };
 
-  const past7Days = getPast7Days();
+    // 2. Aggregate logs into daily totals
+    return list.map((day) => {
+      const dayLogs = activities.filter(act => act.date === day.dateStr);
+      const totalCO2 = dayLogs.reduce((sum, act) => sum + act.co2Kg, 0);
 
-  // 2. Aggregate logs into daily totals
-  const chartData = past7Days.map((day) => {
-    const dayLogs = activities.filter(act => act.date === day.dateStr);
-    const totalCO2 = dayLogs.reduce((sum, act) => sum + act.co2Kg, 0);
-
-    return {
-      name: day.label,
-      'CO₂ (kg)': parseFloat(totalCO2.toFixed(1)),
-      date: day.dateStr,
-    };
-  });
+      return {
+        name: day.label,
+        'CO₂ (kg)': parseFloat(totalCO2.toFixed(1)),
+        date: day.dateStr,
+      };
+    });
+  }, [activities]);
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 w-full">

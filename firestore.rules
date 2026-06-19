@@ -1,9 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null 
-                         && request.auth.uid == userId;
+    
+    // Helper function to check ownership
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId)
+                    && (request.resource.data.currentStreak == null || (request.resource.data.currentStreak is int && request.resource.data.currentStreak >= 0))
+                    && (request.resource.data.longestStreak == null || (request.resource.data.longestStreak is int && request.resource.data.longestStreak >= 0))
+                    && (request.resource.data.country == null || request.resource.data.country is string)
+                    && (request.resource.data.dietPreference == null || request.resource.data.dietPreference is string);
+
+      match /activities/{activityId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId)
+                      && request.resource.data.userId == userId
+                      && request.resource.data.category in ['transport', 'food', 'energy', 'shopping']
+                      && request.resource.data.quantity is number
+                      && request.resource.data.quantity > 0
+                      && request.resource.data.co2Kg is number
+                      && request.resource.data.co2Kg >= 0
+                      && request.resource.data.date is string
+                      && request.resource.data.date.matches('^\\d{4}-\\d{2}-\\d{2}$');
+      }
+
+      match /cache/{cacheId} {
+        allow read, write: if isOwner(userId);
+      }
     }
   }
 }

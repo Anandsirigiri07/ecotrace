@@ -1,10 +1,29 @@
 import { useState } from 'react';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { Activity, ChatMessage, UserProfile } from '../types';
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
+
+const safetySettings = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+];
 
 interface LiveData {
   gridIntensity: number;
@@ -25,7 +44,8 @@ const getEcoAdvisorPlan = async (
   userProfile: UserProfile
 ) => {
   const model = genAI.getGenerativeModel({ 
-    model: 'gemini-1.5-pro'  // NOT flash
+    model: 'gemini-1.5-pro', // NOT flash
+    safetySettings
   });
 
   // Calculate category breakdown
@@ -238,7 +258,8 @@ export const useGemini = () => {
     setError(null);
     try {
       const model = genAI.getGenerativeModel({ 
-        model: 'gemini-1.5-pro' 
+        model: 'gemini-1.5-pro',
+        safetySettings
       });
       
       const chat = model.startChat({
@@ -278,7 +299,8 @@ export const useGemini = () => {
 
     try {
       const model = genAI.getGenerativeModel({ 
-        model: 'gemini-1.5-pro' 
+        model: 'gemini-1.5-pro',
+        safetySettings
       });
       const prompt = `The user just logged a "${category}" activity: ${activityType} (${quantity} ${unit}). Total logged CO2 emitted is ${todayTotalCO2} kg. Generate a 1-sentence specific encouraging eco-insight or alternative suggestion in the Indian/Bengaluru context.`;
       const result = await model.generateContent(prompt);
