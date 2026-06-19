@@ -18,7 +18,7 @@ const PORT = 3000;
 app.use(express.json());
 
 // Lazy-initialize Gemini SDK to prevent startup crashes if GEMINI_API_KEY is missing
-let aiInstance: any = null;
+let aiInstance: GoogleGenAI | null = null;
 function getGeminiClient() {
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
@@ -76,8 +76,9 @@ app.post('/api/gemini/baseline', async (req, res) => {
     const responseText = result.text || '{}';
     const parsed = JSON.parse(responseText.trim());
     res.json(parsed);
-  } catch (error: any) {
-    console.error('Gemini baseline calculation error, using fallback:', error.message);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Gemini baseline calculation error, using fallback:', errorMsg);
     
     // Pure fallback based on standard calculations
     let baseScore = 400; // default baseline average in kg CO2/month
@@ -153,8 +154,9 @@ app.post('/api/gemini/calculate', async (req, res) => {
     // Enforce our exact calculation for absolute mathematical trust
     parsed.co2_kg = exactCO2;
     res.json(parsed);
-  } catch (error: any) {
-    console.error('Gemini calculation error, using fallback:', error.message);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Gemini calculation error, using fallback:', errorMsg);
     
     // Robust local fallback
     let alternative = 'Consider sharing journeys or choosing carbon offset certified items.';
@@ -217,12 +219,13 @@ app.post('/api/gemini/chat', async (req, res) => {
 
     const text = result.text || '';
     res.json({ text });
-  } catch (error: any) {
-    console.error('Gemini chat error, using fallback:', error.message);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Gemini chat error, using fallback:', errorMsg);
     
     // Friendly, supportive local recommendation if Gemini is unavailable
     res.json({
-      text: `Hi there! I am the EcoTrace Assistant. I'm currently running in offline fallback mode because the backend Gemini service reported an error: "${error.message}".\n\nYour total carbon footprint logged this week is ${((userProfile?.totalSavedKg || 0)).toFixed(1)}kg CO2. Here are some tips to reduce your emissions:\n- Consolidate driving errands to save transport carbon.\n- Try a plant-based meal once a week.\n- Switch off appliances at the wall to prevent vampire energy draw.`
+      text: `Hi there! I am the EcoTrace Assistant. I'm currently running in offline fallback mode because the backend Gemini service reported an error: "${errorMsg}".\n\nYour total carbon footprint logged this week is ${((userProfile?.totalSavedKg || 0)).toFixed(1)}kg CO2. Here are some tips to reduce your emissions:\n- Consolidate driving errands to save transport carbon.\n- Try a plant-based meal once a week.\n- Switch off appliances at the wall to prevent vampire energy draw.`
     });
   }
 });
@@ -267,8 +270,9 @@ app.post('/api/gemini/insights', async (req, res) => {
     const responseText = result.text || '{}';
     const parsed = JSON.parse(responseText.trim());
     res.json(parsed);
-  } catch (error: any) {
-    console.error('Gemini insights error, using fallback:', error.message);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Gemini insights error, using fallback:', errorMsg);
     res.json({
       weeklyTip: "You saved an estimated 4.2kg of CO2 this week! Switching just 2 hot water cycles to cold wash laundry could save an extra 1.5kg of carbon.",
       challengeTitle: "Green Grid Champion",
