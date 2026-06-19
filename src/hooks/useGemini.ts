@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
-import { Activity, ChatMessage, UserProfile } from '../types';
+import { Activity, ChatMessage, UserProfile, EcoPlan, ActivityCategory } from '../types';
+import { useAuth } from './useAuth';
+import { rateLimits } from '../utils/rateLimiter';
+import { sanitizeGeminiPrompt } from '../utils/sanitize';
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
 
@@ -152,7 +155,7 @@ const getCachedOrFreshPlan = async (
   const lastActivityTime = activities[0]?.createdAt 
     ? (activities[0].createdAt instanceof Timestamp 
         ? activities[0].createdAt.toMillis() 
-        : new Date(activities[0].createdAt).getTime())
+        : new Date(activities[0].createdAt as string | number | Date).getTime())
     : 0;
     
   const cacheSnap = await getDoc(cacheRef);
@@ -161,7 +164,7 @@ const getCachedOrFreshPlan = async (
     const cached = cacheSnap.data();
     const generatedAtMillis = cached.generatedAt instanceof Timestamp 
       ? cached.generatedAt.toMillis() 
-      : new Date(cached.generatedAt).getTime();
+      : new Date(cached.generatedAt as string | number | Date).getTime();
     const cacheAge = Date.now() - generatedAtMillis;
     const sixHours = 6 * 60 * 60 * 1000;
     
@@ -191,19 +194,19 @@ const getCachedOrFreshPlan = async (
 };
 
 // Static fallback (competitor has this too, we match it)
-const getStaticFallbackPlan = (activities: Activity[]) => ({
+const getStaticFallbackPlan = (activities: Activity[]): EcoPlan => ({
   ecoScore: 65,
-  scoreLabel: 'On Track' as const,
+  scoreLabel: 'On Track',
   weeklyTarget: 32.5,
   topInsight: 'Focus on transport — it is typically 40% of urban Indian carbon footprints.',
   actions: [
-    { day: 1, action: 'Take metro instead of cab', category: 'transport', savingKg: 3.2, difficulty: 'easy', localContext: 'Bengaluru Namma Metro covers most IT corridors' },
-    { day: 2, action: 'Switch to vegetarian lunch', category: 'food', savingKg: 5.0, difficulty: 'easy', localContext: 'Most Bengaluru canteens have excellent veg options' },
-    { day: 3, action: 'Set AC temperature to 24°C', category: 'energy', savingKg: 1.5, difficulty: 'easy', localContext: 'Every degree above 20 saves ~6% energy' },
-    { day: 4, action: 'Walk to local shop for groceries', category: 'transport', savingKg: 1.2, difficulty: 'easy', localContext: 'Bengaluru local layouts are walkable' },
-    { day: 5, action: 'Choose reusable bag over plastic bag', category: 'shopping', savingKg: 0.8, difficulty: 'easy', localContext: 'Plastic bans are active in Karnataka' },
-    { day: 6, action: 'Turn off power strips on sleep', category: 'energy', savingKg: 0.9, difficulty: 'easy', localContext: 'Vampire power draws 10W continuously' },
-    { day: 7, action: 'Plan a completely vegan day', category: 'food', savingKg: 6.5, difficulty: 'medium', localContext: 'Traditional South Indian food has many vegan options' }
+    { day: 1, action: 'Take metro instead of cab', category: 'transport' as ActivityCategory, savingKg: 3.2, difficulty: 'easy', localContext: 'Bengaluru Namma Metro covers most IT corridors' },
+    { day: 2, action: 'Switch to vegetarian lunch', category: 'food' as ActivityCategory, savingKg: 5.0, difficulty: 'easy', localContext: 'Most Bengaluru canteens have excellent veg options' },
+    { day: 3, action: 'Set AC temperature to 24°C', category: 'energy' as ActivityCategory, savingKg: 1.5, difficulty: 'easy', localContext: 'Every degree above 20 saves ~6% energy' },
+    { day: 4, action: 'Walk to local shop for groceries', category: 'transport' as ActivityCategory, savingKg: 1.2, difficulty: 'easy', localContext: 'Bengaluru local layouts are walkable' },
+    { day: 5, action: 'Choose reusable bag over plastic bag', category: 'shopping' as ActivityCategory, savingKg: 0.8, difficulty: 'easy', localContext: 'Plastic bans are active in Karnataka' },
+    { day: 6, action: 'Turn off power strips on sleep', category: 'energy' as ActivityCategory, savingKg: 0.9, difficulty: 'easy', localContext: 'Vampire power draws 10W continuously' },
+    { day: 7, action: 'Plan a completely vegan day', category: 'food' as ActivityCategory, savingKg: 6.5, difficulty: 'medium', localContext: 'Traditional South Indian food has many vegan options' }
   ],
   quickWins: [
     { title: 'LED bulb upgrade', impact: '5 kg CO2 saved per month', howTo: 'Replace old incandescent lights' },
@@ -219,7 +222,8 @@ const getStaticFallbackPlan = (activities: Activity[]) => ({
 });
 
 export const useGemini = () => {
-  const [plan, setPlan] = useState<any>(null);
+  const { user } = useAuth();
+  const [plan, setPlan] = useState<EcoPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -238,7 +242,7 @@ export const useGemini = () => {
         userId, activities, liveData, userProfile
       );
       setPlan(result);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to generate plan:', err);
       setPlan(getStaticFallbackPlan(activities));
       setError('Using offline eco tips (AI unavailable)');
@@ -254,6 +258,16 @@ export const useGemini = () => {
     context: { activities: Activity[], liveData: LiveData },
     onChunk: (text: string) => void
   ) => {
+    const uid = user?.uid || 'anonymous';
+    const limit = rateLimits.geminiCall(uid);
+    if (!limit.allowed) {
+      throw new Error(
+        `AI limit reached. Wait ${
+          Math.ceil(limit.waitMs / 60000)
+        } min`
+      );
+    }
+
     setIsStreaming(true);
     setError(null);
     try {
@@ -270,13 +284,14 @@ export const useGemini = () => {
         generationConfig: { maxOutputTokens: 500 }
       });
 
-      const result = await chat.sendMessageStream(message);
+      const sanitizedMsg = sanitizeGeminiPrompt(message);
+      const result = await chat.sendMessageStream(sanitizedMsg);
       
       for await (const chunk of result.stream) {
         const text = chunk.text();
         onChunk(text);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Stream chat error:', err);
       setError('Streaming chat failed. Showing local suggestion.');
       onChunk('Oops! I had trouble connecting to the Gemini service. Here is a helpful fallback suggestion:\n- Switch to active transit or carpooling for commutes.\n- Choose a vegetarian meal once a week.\n- Switch off energy-hungry appliances when done.');
@@ -292,7 +307,7 @@ export const useGemini = () => {
     quantity: number,
     unit: string,
     todayTotalCO2: number,
-    userProfile?: any
+    userProfile?: unknown
   ): Promise<string> => {
     setLoading(true);
     setError(null);
@@ -303,9 +318,10 @@ export const useGemini = () => {
         safetySettings
       });
       const prompt = `The user just logged a "${category}" activity: ${activityType} (${quantity} ${unit}). Total logged CO2 emitted is ${todayTotalCO2} kg. Generate a 1-sentence specific encouraging eco-insight or alternative suggestion in the Indian/Bengaluru context.`;
-      const result = await model.generateContent(prompt);
+      const sanitizedPrompt = sanitizeGeminiPrompt(prompt);
+      const result = await model.generateContent(sanitizedPrompt);
       return result.response.text().trim();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Gemini calculation error:', err);
       setError('AI is temporarily unavailable, showing local tip instead.');
       return getLocalFallbackTip(activityType, quantity, unit, todayTotalCO2);

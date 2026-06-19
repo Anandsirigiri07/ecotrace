@@ -6,7 +6,7 @@ import { useGemini } from '../hooks/useGemini';
 import { useLiveData } from '../context/LiveDataContext';
 import { trackEvent } from '../utils/analytics';
 import InsightChat from '../components/InsightChat';
-import { ChatMessage } from '../types';
+import { ChatMessage, EcoAction, QuickWin } from '../types';
 
 export function Insights() {
   const { user, profile } = useAuth();
@@ -155,7 +155,7 @@ export function Insights() {
           </p>
 
           <div className="space-y-3">
-            {plan.actions?.map((act: any, idx: number) => {
+            {plan.actions?.map((act: EcoAction, idx: number) => {
               const diffColor = act.difficulty === 'easy' ? 'text-green-600 bg-green-50' : 
                                 act.difficulty === 'medium' ? 'text-yellow-600 bg-yellow-50' : 
                                 'text-red-600 bg-red-50';
@@ -199,7 +199,7 @@ export function Insights() {
             Quick Wins ⚡
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {plan.quickWins?.map((win: any, idx: number) => (
+            {plan.quickWins?.map((win: QuickWin, idx: number) => (
               <div key={idx} className="p-3 bg-amber-50/40 border border-amber-100 rounded-2xl flex flex-col justify-between space-y-2">
                 <div>
                   <h4 className="text-[11px] font-bold text-textPrimary leading-snug">{win.title}</h4>

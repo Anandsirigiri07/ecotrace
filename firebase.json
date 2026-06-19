@@ -1,18 +1,64 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  },
+  "firestore": [
+    {
+      "database": "ai-studio-9406901d-d389-4e98-ae08-1fb710d22510",
+      "rules": "firestore.rules"
+    }
+  ],
   "hosting": {
     "public": "dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
+    "ignore": ["firebase.json", "**/.*"],
+    "rewrites": [{
+      "source": "**",
+      "destination": "/index.html"
+    }],
+    "headers": [
       {
         "source": "**",
-        "destination": "/index.html"
+        "headers": [
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "X-Frame-Options",
+            "value": "DENY"
+          },
+          {
+            "key": "X-XSS-Protection",
+            "value": "1; mode=block"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "strict-origin-when-cross-origin"
+          },
+          {
+            "key": "Permissions-Policy",
+            "value": "camera=(), microphone=(), geolocation=(self)"
+          },
+          {
+            "key": "Strict-Transport-Security",
+            "value": "max-age=31536000; includeSubDomains"
+          },
+          {
+            "key": "Content-Security-Policy",
+            "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://api.openweathermap.org https://api.carbonintensity.org.uk https://api.worldbank.org https://generativelanguage.googleapis.com wss://*.firebaseio.com; frame-src https://accounts.google.com"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [{
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }]
+      },
+      {
+        "source": "index.html",
+        "headers": [{
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }]
       }
     ]
   }

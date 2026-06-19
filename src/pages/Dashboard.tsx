@@ -20,7 +20,7 @@ import { collection, doc, addDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // Weather Card Component
-function WeatherCard({ weather }: { weather: any }) {
+function WeatherCard({ weather }: { weather: { temp: number; condition: string; tip: string; isGoodForCycling: boolean; } | null }) {
   if (!weather) return null;
   return (
     <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100 flex items-center justify-between transition-all duration-200 hover:shadow-lg">

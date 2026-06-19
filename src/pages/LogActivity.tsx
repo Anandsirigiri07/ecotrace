@@ -227,7 +227,7 @@ export function LogActivity() {
               <input
                 id="quantity-input"
                 type="number"
-                step="any"
+                step="0.01"
                 min="0.01"
                 required
                 value={quantity}

@@ -15,8 +15,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from './useAuth';
-import { Activity, CarbonSummary, ActivityCategory } from '../types';
+import { CarbonActivity as Activity, ActivityCategory, CarbonSummary } from '../types';
 import { trackEvent } from '../utils/analytics';
+import { sanitizeActivityInput, sanitizeString } from '../utils/sanitize';
+import { rateLimits } from '../utils/rateLimiter';
 
 export const useCarbon = (userId?: string | null) => {
   const { user: authUser } = useAuth();
@@ -135,28 +137,30 @@ export const useCarbon = (userId?: string | null) => {
       };
     }
     
-    // Strict input type & bounds validation
-    const allowedCategories = ['transport', 'food', 'energy', 'shopping'];
-    if (!allowedCategories.includes(activityData.category)) {
-      throw new Error('Invalid activity category');
+    // Rate Limiting Check
+    const limit = rateLimits.activityLog(uid);
+    if (!limit.allowed) {
+      throw new Error(
+        `Too many requests. Try again in ${Math.ceil(limit.waitMs / 1000)}s`
+      );
     }
 
-    if (typeof activityData.co2Kg !== 'number' || !Number.isFinite(activityData.co2Kg) || activityData.co2Kg < 0) {
-      throw new Error('CO2 value must be a valid non-negative number');
-    }
-    if (typeof activityData.quantity !== 'number' || !Number.isFinite(activityData.quantity) || activityData.quantity <= 0) {
-      throw new Error('Quantity must be a valid positive number');
-    }
+    // Sanitize and validate activity input using utility
+    const sanitized = sanitizeActivityInput({
+      category: activityData.category,
+      activityType: activityData.activityType,
+      quantity: activityData.quantity,
+      unit: activityData.unit,
+      co2Kg: activityData.co2Kg,
+      date: activityData.date
+    });
 
-    // Sanitize string inputs to prevent XSS/HTML injections
-    const sanitizeString = (str: string) => {
-      if (!str) return '';
-      return str.replace(/<[^>]*>/g, '').trim();
+    activityData = {
+      ...activityData,
+      ...sanitized,
+      category: sanitized.category as ActivityCategory,
+      geminiTip: sanitizeString(activityData.geminiTip)
     };
-
-    activityData.activityType = sanitizeString(activityData.activityType);
-    activityData.unit = sanitizeString(activityData.unit);
-    activityData.geminiTip = sanitizeString(activityData.geminiTip);
     
     const userActivitiesRef = collection(
       db,

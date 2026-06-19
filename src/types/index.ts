@@ -1,15 +1,15 @@
 export type ActivityCategory = 'transport' | 'food' | 'energy' | 'shopping';
 
 export interface UserProfile {
-  displayName: string;
-  email: string;
-  photoURL: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
   country: string;
   dietPreference: string;
-  joinedAt: any; // Firestore Timestamp
+  joinedAt: unknown; // Firestore Timestamp
   currentStreak: number;
   longestStreak: number;
-  lastLogDate: string; // YYYY-MM-DD
+  lastLogDate: string | null; // YYYY-MM-DD
 }
 
 export interface CarbonActivity {
@@ -20,7 +20,7 @@ export interface CarbonActivity {
   unit: string;
   co2Kg: number;
   date: string; // YYYY-MM-DD
-  createdAt: any; // Firestore Timestamp
+  createdAt: unknown; // Firestore Timestamp
   geminiTip: string;
 }
 
@@ -39,3 +39,35 @@ export interface CarbonSummary {
 }
 
 export type Activity = CarbonActivity;
+
+export interface EcoAction {
+  day: number;
+  action: string;
+  category: ActivityCategory;
+  savingKg: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  localContext: string;
+}
+
+export interface QuickWin {
+  title: string;
+  impact: string;
+  howTo: string;
+}
+
+export interface MonthlyChallenge {
+  title: string;
+  description: string;
+  targetReductionKg: number;
+  reward: string;
+}
+
+export interface EcoPlan {
+  ecoScore: number;
+  scoreLabel: 'Carbon Hero' | 'On Track' | 'Needs Work' | 'Critical';
+  weeklyTarget: number;
+  topInsight: string;
+  actions: EcoAction[];
+  quickWins: QuickWin[];
+  monthlyChallenge: MonthlyChallenge;
+}

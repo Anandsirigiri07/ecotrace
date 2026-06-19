@@ -47,8 +47,8 @@ function LayoutWrapper({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-mintBg flex flex-col transition-all duration-200">
       {/* Navigation bars (desktop top, mobile bottom) */}
       <Navbar 
-        userPhoto={profile?.photoURL} 
-        displayName={profile?.displayName} 
+        userPhoto={profile?.photoURL || undefined} 
+        displayName={profile?.displayName || undefined} 
       />
 
       {/* Main page content container with padding offsets for navbars */}

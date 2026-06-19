@@ -98,7 +98,7 @@ export const useDailyChallenge = (userId: string) => {
         const fallbacks: DailyChallenge[] = [
           {
             title: 'Metro Over Cab Today',
-            description: 'Take Namma Metro for any trip over 3km instead of Ola/Uber',
+            description: 'Take Namma Metro for a trip over 3km instead of Ola/Uber',
             savingKg: 3.2,
             category: 'transport',
             difficulty: 'easy',

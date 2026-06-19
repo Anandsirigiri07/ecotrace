@@ -146,8 +146,8 @@ export function Profile() {
             <span>Joined EcoTrace</span>
             <span>&bull;</span>
             <span>
-              {profile?.joinedAt?.seconds 
-                ? new Date(profile.joinedAt.seconds * 1000).toLocaleDateString() 
+              {profile && profile.joinedAt
+                ? new Date((profile.joinedAt as { seconds: number }).seconds * 1000).toLocaleDateString() 
                 : new Date().toLocaleDateString()
               }
             </span>

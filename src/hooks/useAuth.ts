@@ -39,9 +39,9 @@ export const useAuth = () => {
             await ensureUserProfile(firebaseUser);
             await fetchProfile(firebaseUser.uid);
             setUser(firebaseUser);
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error('Error during auth state change profile sync:', err);
-            setError(err.message);
+            setError(err instanceof Error ? err.message : String(err));
           }
         } else {
           setUser(null);
@@ -49,7 +49,7 @@ export const useAuth = () => {
         }
         setLoading(false);
       },
-      (err: any) => {
+      (err: Error) => {
         console.error('Auth state error:', err);
         setError(err.message);
         setLoading(false);
@@ -62,20 +62,21 @@ export const useAuth = () => {
     try {
       setError(null);
       await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorVal = err as AuthError;
       // Handle specific auth errors
-      if (err.code === 'auth/popup-blocked') {
+      if (errorVal.code === 'auth/popup-blocked') {
         setError('Popup blocked. Please allow popups for this site.');
-      } else if (err.code === 'auth/unauthorized-domain') {
+      } else if (errorVal.code === 'auth/unauthorized-domain') {
         setError('Domain not authorized. Contact support.');
         console.error('Add this domain to Firebase Auth authorized domains:', 
           window.location.hostname);
-      } else if (err.code === 'auth/popup-closed-by-user') {
+      } else if (errorVal.code === 'auth/popup-closed-by-user') {
         // User closed popup - not an error
         return;
       } else {
         setError('Sign in failed. Please try again.');
-        console.error('Sign in error:', err.code, err.message);
+        console.error('Sign in error:', errorVal.code, errorVal.message);
       }
     }
   };
