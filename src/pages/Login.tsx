@@ -2,7 +2,13 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import DashboardCard from '../components/DashboardCard';
 
+/**
+ * Login page rendering the authentication view.
+ * Uses Google Sign-In via Firebase Auth.
+ * Adheres to WCAG 2.1 AA keyboard access and semantic standards.
+ */
 export function Login() {
   const { user, loading, error, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
@@ -19,7 +25,7 @@ export function Login() {
 
   return (
     <main 
-      className="min-h-screen bg-gradient-to-br from-primary via-secondary to-accent flex flex-col items-center justify-center p-4 relative overflow-hidden"
+      className="min-h-screen bg-gradient-to-br from-primary via-secondary to-accent dark:from-gray-950 dark:via-gray-900 dark:to-gray-800 flex flex-col items-center justify-center p-4 relative overflow-hidden"
       role="main"
       aria-label="EcoTrace Authentication Page"
     >
@@ -27,23 +33,23 @@ export function Login() {
       <div className="absolute w-[450px] h-[450px] rounded-full bg-white/5 -top-40 -left-40 blur-3xl" aria-hidden="true" />
       <div className="absolute w-[350px] h-[350px] rounded-full bg-white/5 -bottom-20 -right-20 blur-3xl" aria-hidden="true" />
 
-      <div className="max-w-md w-full bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-8 md:p-10 flex flex-col items-center border border-white/20 relative z-10 transition-all duration-300">
+      <DashboardCard className="max-w-md w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md p-8 md:p-10 flex flex-col items-center border border-white/20 relative z-10 shadow-2xl transition-all duration-300">
         
         {/* App Logo */}
-        <div className="w-16 h-16 bg-mintBg text-secondary rounded-2xl flex items-center justify-center mb-6 shadow-inner" aria-hidden="true">
+        <div className="w-16 h-16 bg-mintBg dark:bg-gray-700 text-secondary dark:text-accent rounded-2xl flex items-center justify-center mb-6 shadow-inner" aria-hidden="true">
           <Leaf size={32} className="fill-current animate-pulse" />
         </div>
 
-        <h1 className="text-3xl font-extrabold tracking-tight text-primary font-sans text-center mb-2">
+        <h1 className="text-3xl font-extrabold tracking-tight text-primary dark:text-white font-sans text-center mb-2">
           EcoTrace
         </h1>
-        <p className="text-sm text-textSecondary text-center mb-8 max-w-[280px]">
+        <p className="text-sm text-textSecondary dark:text-gray-400 text-center mb-8 max-w-[280px]">
           Empowering you to measure, understand, and offset your carbon footprint.
         </p>
 
         {error && (
           <div 
-            className="w-full bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3 mb-6 flex items-start gap-2"
+            className="w-full bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-400 text-xs rounded-xl p-3 mb-6 flex items-start gap-2"
             role="alert"
           >
             <span className="font-semibold" aria-hidden="true">Error:</span>
@@ -56,10 +62,10 @@ export function Login() {
           disabled={loading}
           aria-label="Sign in with Google"
           tabIndex={0}
-          className="w-full bg-primary text-white hover:bg-primary/95 active:scale-[0.98] transition-all disabled:opacity-55 disabled:cursor-not-allowed rounded-full py-3.5 px-6 font-semibold flex items-center justify-center gap-3 shadow-md border-2 border-transparent focus-visible:border-white focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className="w-full bg-primary dark:bg-accent text-white dark:text-primary hover:bg-primary/95 dark:hover:bg-accent/95 active:scale-[0.98] transition-all disabled:opacity-55 disabled:cursor-not-allowed rounded-full py-3.5 px-6 font-bold flex items-center justify-center gap-3 shadow-md border-2 border-transparent focus-visible:border-white focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 cursor-pointer"
         >
           {loading ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+            <div className="w-5 h-5 border-2 border-white dark:border-primary border-t-transparent rounded-full animate-spin" aria-hidden="true" />
           ) : (
             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -71,10 +77,10 @@ export function Login() {
           <span>{loading ? 'Connecting...' : 'Sign in with Google'}</span>
         </button>
 
-        <p className="text-[10px] text-gray-400 mt-8 text-center max-w-[240px] leading-relaxed">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-8 text-center max-w-[240px] leading-relaxed">
           By signing in, you agree to EcoTrace's local workspace guidelines and secure data rules.
         </p>
-      </div>
+      </DashboardCard>
     </main>
   );
 }

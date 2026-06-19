@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../services/firebase';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { Activity, ChatMessage, UserProfile, EcoPlan, ActivityCategory } from '../types';
 import { useAuth } from './useAuth';

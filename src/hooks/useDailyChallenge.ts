@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../services/firebase';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { DEFAULT_CHALLENGES } from '../constants';
+import { useQuery } from './useQuery';
 
 const safetySettings = [
   {
@@ -22,28 +23,30 @@ const safetySettings = [
   },
 ];
 
-interface DailyChallenge {
+export interface DailyChallenge {
   title: string;
   description: string;
   savingKg: number;
-  category: string;
+  category: 'transport' | 'food' | 'energy' | 'shopping';
   difficulty: 'easy' | 'medium' | 'hard';
   date: string;
 }
 
+/**
+ * Custom hook to manage and fetch the personalized daily eco-challenge using a query cache.
+ * Attempts to retrieve a cached challenge from Firestore, falls back to generating a fresh 
+ * one via the Gemini API, and provides a local fallback array if the API is offline.
+ * 
+ * @param userId The authenticated user's ID
+ * @returns {challenge, loading} The active daily challenge and loading state.
+ */
 export const useDailyChallenge = (userId: string) => {
-  const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
-  const [loading, setLoading] = useState(true);
+  const today = new Date().toISOString().split('T')[0];
 
-  useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-
-    const fetchChallenge = async () => {
+  const { data: challenge, loading } = useQuery<DailyChallenge | null>(
+    `challenge-${userId}-${today}`,
+    async () => {
+      if (!userId) return null;
       try {
         // Check Firestore cache first
         const ref = doc(
@@ -52,15 +55,16 @@ export const useDailyChallenge = (userId: string) => {
         const snap = await getDoc(ref);
 
         if (snap.exists()) {
-          setChallenge(snap.data() as DailyChallenge);
-          setLoading(false);
-          return;
+          return snap.data() as DailyChallenge;
         }
 
         // Generate fresh with Gemini
-        const genAI = new GoogleGenerativeAI(
-          import.meta.env.VITE_GEMINI_API_KEY
-        );
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+        if (!apiKey) {
+          throw new Error('API key missing');
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
           model: 'gemini-1.5-pro',
           safetySettings
@@ -92,75 +96,26 @@ export const useDailyChallenge = (userId: string) => {
 
         // Cache in Firestore for today
         await setDoc(ref, parsed);
-        setChallenge(parsed);
+        return parsed;
       } catch {
-        // Fallback challenges
-        const fallbacks: DailyChallenge[] = [
-          {
-            title: 'Metro Over Cab Today',
-            description: 'Take Namma Metro for a trip over 3km instead of Ola/Uber',
-            savingKg: 3.2,
-            category: 'transport',
-            difficulty: 'easy',
-            date: today
-          },
-          {
-            title: 'Skip Meat at Lunch',
-            description: 'Choose a vegetarian meal at your office canteen or nearby restaurant',
-            savingKg: 2.5,
-            category: 'food',
-            difficulty: 'easy',
-            date: today
-          },
-          {
-            title: 'AC at 26°C Challenge',
-            description: 'Set your AC to 26°C instead of the usual 22-24°C for the whole day',
-            savingKg: 1.8,
-            category: 'energy',
-            difficulty: 'medium',
-            date: today
-          },
-          {
-            title: 'No Single-Use Plastic',
-            description: 'Carry your own water bottle and bag — refuse all plastic today',
-            savingKg: 0.5,
-            category: 'shopping',
-            difficulty: 'easy',
-            date: today
-          },
-          {
-            title: 'Walk the Last Kilometer',
-            description: 'Get off one stop early and walk the rest — great for Bengaluru weather',
-            savingKg: 1.2,
-            category: 'transport',
-            difficulty: 'easy',
-            date: today
-          },
-          {
-            title: 'Cold Shower Challenge',
-            description: 'Skip the geyser today — saves electricity and water heating energy',
-            savingKg: 1.5,
-            category: 'energy',
-            difficulty: 'hard',
-            date: today
-          },
-          {
-            title: 'Cook at Home Tonight',
-            description: 'Skip food delivery — home cooking has 60% lower carbon footprint',
-            savingKg: 2.0,
-            category: 'food',
-            difficulty: 'medium',
-            date: today
-          }
-        ];
-        const fallback = fallbacks[new Date().getDay() % fallbacks.length];
-        setChallenge(fallback);
+        // Fallback challenges mapped from centralized constants
+        const index = new Date().getDate() % DEFAULT_CHALLENGES.length;
+        const selected = DEFAULT_CHALLENGES[index];
+        const fallback: DailyChallenge = {
+          title: selected.title,
+          description: selected.description,
+          savingKg: selected.savingKg,
+          category: selected.category,
+          difficulty: selected.difficulty,
+          date: today
+        };
+        return fallback;
       }
-      setLoading(false);
-    };
-
-    fetchChallenge();
-  }, [userId]);
+    },
+    { staleTime: 86400000 } // Keep for 24 hours
+  );
 
   return { challenge, loading };
 };
+
+export default useDailyChallenge;

@@ -8,7 +8,7 @@ import {
   Leaf,
   LogOut
 } from 'lucide-react';
-import { auth } from '../firebase';
+import { auth } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 
 interface NavbarProps {

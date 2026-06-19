@@ -13,7 +13,7 @@ import {
   Timestamp,
   FirestoreError
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../services/firebase';
 import { useAuth } from './useAuth';
 import { CarbonActivity as Activity, ActivityCategory, CarbonSummary } from '../types';
 import { trackEvent } from '../utils/analytics';

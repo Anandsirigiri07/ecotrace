@@ -3,16 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Trophy, 
   Flame, 
-  MapPin, 
-  Utensils, 
   Leaf, 
   LogOut, 
-  CheckCircle,
-  HelpCircle
+  CheckCircle 
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useCarbon } from '../hooks/useCarbon';
+import DashboardCard from '../components/DashboardCard';
+import StatCard from '../components/StatCard';
+import SectionHeader from '../components/SectionHeader';
 
+/**
+ * Profile component that manages user preferences, country selection, 
+ * diet preferences, and shows sustainability achievements (badges) and streak statistics.
+ */
 export function Profile() {
   const navigate = useNavigate();
   const { user, profile, logout, refreshProfile } = useAuth();
@@ -22,6 +26,7 @@ export function Profile() {
   const [country, setCountry] = useState('India');
   const [dietPreference, setDietPreference] = useState('None');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Sync settings state with loaded profile
   useEffect(() => {
@@ -40,13 +45,14 @@ export function Profile() {
   // Save Settings handler
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaveError(null);
     try {
       await updateProfileSettings(country, dietPreference);
       await refreshProfile(); // reload auth context
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      console.error('Failed to save settings:', err);
+      setSaveError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -90,7 +96,6 @@ export function Profile() {
     const hasStreakBadge = longestStreak >= 7 || currentStreak >= 7;
 
     // C. Low Carbon Specialist: Logged at least 1 day with total CO2 emissions < 5kg (and > 0)
-    // Group activities by date
     const dateMap: { [date: string]: number } = {};
     activities.forEach(act => {
       dateMap[act.date] = (dateMap[act.date] || 0) + act.co2Kg;
@@ -122,27 +127,27 @@ export function Profile() {
   return (
     <main className="max-w-2xl mx-auto px-4 py-6 space-y-8" role="main">
       {/* Profile Header card */}
-      <section className="bg-white rounded-3xl shadow-md p-6 border border-gray-100 flex flex-col sm:flex-row items-center gap-5">
+      <DashboardCard className="p-6 flex flex-col sm:flex-row items-center gap-5">
         {user?.photoURL ? (
           <img 
             src={user.photoURL} 
             alt={profile?.displayName || 'User profile'} 
-            className="w-20 h-20 rounded-full border-2 border-secondary object-cover shadow-sm shrink-0" 
+            className="w-20 h-20 rounded-full border-2 border-secondary dark:border-accent object-cover shadow-sm shrink-0" 
           />
         ) : (
-          <div className="w-20 h-20 rounded-full bg-accent text-primary font-bold flex items-center justify-center text-2xl shadow-inner shrink-0">
+          <div className="w-20 h-20 rounded-full bg-accent dark:bg-gray-700 text-primary dark:text-accent font-bold flex items-center justify-center text-2xl shadow-inner shrink-0">
             {profile?.displayName ? profile.displayName[0].toUpperCase() : 'E'}
           </div>
         )}
 
         <div className="text-center sm:text-left space-y-1">
-          <h2 className="text-xl md:text-2xl font-extrabold text-primary tracking-tight">
+          <h2 className="text-xl md:text-2xl font-extrabold text-primary dark:text-white tracking-tight">
             {profile?.displayName || 'EcoTracer'}
           </h2>
-          <p className="text-xs text-textSecondary font-semibold">
+          <p className="text-xs text-textSecondary dark:text-gray-400 font-semibold">
             {profile?.email || 'user@ecotrace.com'}
           </p>
-          <div className="flex items-center justify-center sm:justify-start gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+          <div className="flex items-center justify-center sm:justify-start gap-1 text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">
             <span>Joined EcoTrace</span>
             <span>&bull;</span>
             <span>
@@ -153,105 +158,103 @@ export function Profile() {
             </span>
           </div>
         </div>
-      </section>
+      </DashboardCard>
 
       {/* Carbon Stats widget */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-150 p-5 flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-50 text-secondary rounded-xl flex items-center justify-center shrink-0">
-            <Leaf size={24} className="fill-current" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-textSecondary block">
-              CO₂ Saved this Month
-            </span>
-            <span className="text-2xl font-extrabold text-primary">
-              {carbonSaved.toFixed(1)} <span className="text-xs font-semibold text-textSecondary">kg</span>
-            </span>
-          </div>
-        </div>
+      <section className="grid grid-cols-1 sm:grid-cols-2 gap-6" aria-label="Eco stats summaries">
+        <StatCard
+          title="CO₂ Saved this Month"
+          value={`${carbonSaved.toFixed(1)} kg`}
+          icon={Leaf}
+          iconColorClass="text-secondary dark:text-accent"
+          iconBgClass="bg-emerald-50 dark:bg-emerald-950/20"
+        />
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-150 p-5 flex items-center gap-4">
-          <div className="w-12 h-12 bg-orange-50 text-warningColor rounded-xl flex items-center justify-center shrink-0">
-            <Flame size={24} className="fill-current" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-textSecondary block">
-              Best Logging Streak
-            </span>
-            <span className="text-2xl font-extrabold text-primary">
-              {profile?.longestStreak || 0} <span className="text-xs font-semibold text-textSecondary">days</span>
-            </span>
-          </div>
-        </div>
+        <StatCard
+          title="Best Logging Streak"
+          value={`${profile?.longestStreak || 0} days`}
+          icon={Flame}
+          iconColorClass="text-warningColor"
+          iconBgClass="bg-orange-50 dark:bg-orange-950/20"
+        />
       </section>
 
       {/* Badges Earned Section */}
       <section className="space-y-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-textSecondary">
-          Achievement Badges
-        </h3>
+        <SectionHeader 
+          title="Achievement Badges" 
+          level={3}
+          subtitle="Unlock milestones by saving carbon footprint and building eco streaks."
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" role="list" aria-label="Earned achievement badges">
           {badges.map((b) => (
-            <div 
+            <DashboardCard 
               key={b.id}
-              className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col items-center text-center space-y-3 transition-all duration-200 ${
+              className={`p-5 flex flex-col items-center text-center space-y-3 ${
                 b.earned 
-                  ? 'border-accent/40 bg-gradient-to-b from-white to-mintBg/10' 
+                  ? 'border-accent/40 bg-gradient-to-b from-white to-mintBg/10 dark:from-gray-800 dark:to-gray-800/80 dark:border-accent/40' 
                   : 'opacity-55'
               }`}
               role="listitem"
             >
               <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                 b.earned 
-                  ? 'bg-accent/20 text-secondary border border-accent/40 shadow-inner' 
-                  : 'bg-gray-100 text-gray-400 border border-gray-200'
+                  ? 'bg-accent/20 dark:bg-accent/10 text-secondary dark:text-accent border border-accent/40 shadow-inner' 
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-600'
               }`}>
                 <Trophy size={20} className={b.earned ? 'fill-current' : ''} />
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-textPrimary">{b.title}</h4>
-                <p className="text-[10px] text-textSecondary mt-1 leading-normal">
+                <h4 className="text-xs font-bold text-textPrimary dark:text-white">{b.title}</h4>
+                <p className="text-[10px] text-textSecondary dark:text-gray-400 mt-1 leading-normal">
                   {b.description}
                 </p>
               </div>
 
               <div className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                b.earned ? 'bg-secondary/15 text-secondary' : 'bg-gray-100 text-gray-400'
+                b.earned ? 'bg-secondary/15 dark:bg-secondary/25 text-secondary dark:text-accent' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
               }`}>
                 {b.earned ? 'Unlocked' : 'Locked'}
               </div>
-            </div>
+            </DashboardCard>
           ))}
         </div>
       </section>
 
       {/* Profile Settings section */}
-      <section className="bg-white rounded-3xl shadow-md p-6 border border-gray-100 space-y-6">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-textSecondary">
-          Eco Settings
-        </h3>
+      <DashboardCard className="p-6 space-y-6">
+        <SectionHeader 
+          title="Eco Settings" 
+          level={3}
+          subtitle="Configure default carbon calculation attributes for customized tips."
+        />
 
         {saveSuccess && (
-          <div className="bg-emerald-50 border border-secondary/20 text-secondary text-xs rounded-xl p-3 flex items-center gap-2" role="alert">
+          <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-secondary/20 text-secondary dark:text-accent text-xs rounded-xl p-3 flex items-center gap-2" role="alert">
             <CheckCircle size={14} />
             <span className="font-semibold">Eco-Settings saved successfully!</span>
+          </div>
+        )}
+
+        {saveError && (
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 text-red-600 dark:text-red-400 text-xs rounded-xl p-3 flex items-center gap-2" role="alert">
+            <span className="font-semibold">Error: {saveError}</span>
           </div>
         )}
 
         <form onSubmit={handleSaveSettings} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label htmlFor="country-selector" className="text-xs font-bold uppercase tracking-wider text-textSecondary block">
+              <label htmlFor="country-selector" className="text-xs font-bold uppercase tracking-wider text-textSecondary dark:text-gray-400 block">
                 Country
               </label>
               <select
                 id="country-selector"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                className="w-full rounded-xl border-2 border-gray-200 p-3 bg-white text-xs font-bold focus:border-secondary transition-all outline-none"
+                className="w-full rounded-xl border-2 border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-800 text-xs font-bold focus:border-secondary dark:focus:border-accent text-textPrimary dark:text-white transition-all outline-none"
               >
                 <option value="India">India</option>
                 <option value="USA">United States (USA)</option>
@@ -262,14 +265,14 @@ export function Profile() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="diet-preference" className="text-xs font-bold uppercase tracking-wider text-textSecondary block">
+              <label htmlFor="diet-preference" className="text-xs font-bold uppercase tracking-wider text-textSecondary dark:text-gray-400 block">
                 Diet Preference
               </label>
               <select
                 id="diet-preference"
                 value={dietPreference}
                 onChange={(e) => setDietPreference(e.target.value)}
-                className="w-full rounded-xl border-2 border-gray-200 p-3 bg-white text-xs font-bold focus:border-secondary transition-all outline-none"
+                className="w-full rounded-xl border-2 border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-800 text-xs font-bold focus:border-secondary dark:focus:border-accent text-textPrimary dark:text-white transition-all outline-none"
               >
                 <option value="None">No Preference</option>
                 <option value="Vegetarian">Vegetarian</option>
@@ -284,22 +287,23 @@ export function Profile() {
             <button
               type="submit"
               disabled={settingsLoading}
-              className="bg-secondary hover:bg-secondary/95 text-white py-2.5 px-6 rounded-full text-xs font-bold shadow-md cursor-pointer disabled:opacity-55 active:scale-95 transition-all text-center"
+              className="bg-secondary hover:bg-secondary/95 dark:bg-accent dark:hover:bg-accent/90 dark:text-gray-900 text-white py-2.5 px-6 rounded-full text-xs font-bold shadow-md cursor-pointer disabled:opacity-55 active:scale-95 transition-all text-center"
             >
               {settingsLoading ? 'Saving...' : 'Save Settings'}
             </button>
             <button
               type="button"
               onClick={handleSignOut}
-              className="bg-white hover:bg-red-50 border border-red-200 text-red-600 py-2.5 px-6 rounded-full text-xs font-bold shadow-sm cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
+              className="bg-white hover:bg-red-50 dark:bg-gray-800 dark:hover:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-450 py-2.5 px-6 rounded-full text-xs font-bold shadow-sm cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1"
             >
               <LogOut size={12} />
               <span>Sign Out</span>
             </button>
           </div>
         </form>
-      </section>
+      </DashboardCard>
     </main>
   );
 }
+
 export default Profile;

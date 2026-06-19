@@ -4,7 +4,7 @@ import { Flame, Plus, ArrowRight, Activity, TrendingDown, Leaf } from 'lucide-re
 import { useAuth } from '../hooks/useAuth';
 import { useCarbon } from '../hooks/useCarbon';
 import CarbonScoreRing from '../components/CarbonScoreRing';
-import WeeklyChart from '../components/WeeklyChart';
+import EmissionChart from '../components/EmissionChart';
 import ActivityCard from '../components/ActivityCard';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useLiveData } from '../context/LiveDataContext';
@@ -17,42 +17,62 @@ import { GridStatusCard } from '../components/GridStatusCard';
 import { CarbonSavedCounter } from '../components/CarbonSavedCounter';
 import { useDailyChallenge } from '../hooks/useDailyChallenge';
 import { collection, doc, addDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../services/firebase';
+import DashboardCard from '../components/DashboardCard';
+import SectionHeader from '../components/SectionHeader';
+import StatCard from '../components/StatCard';
+import ImpactCard from '../components/ImpactCard';
 
 // Weather Card Component
-function WeatherCard({ weather }: { weather: { temp: number; condition: string; tip: string; isGoodForCycling: boolean; } | null }) {
+interface WeatherCardProps {
+  weather: {
+    temp: number;
+    condition: string;
+    tip: string;
+    isGoodForCycling: boolean;
+  } | null;
+}
+
+function WeatherCard({ weather }: WeatherCardProps) {
   if (!weather) return null;
   return (
-    <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100 flex items-center justify-between transition-all duration-200 hover:shadow-lg">
+    <DashboardCard className="p-5 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 bg-sky-50 text-sky-500 rounded-xl flex items-center justify-center shrink-0 font-bold">
+        <div className="w-11 h-11 bg-sky-50 dark:bg-sky-950/20 text-sky-500 dark:text-sky-400 rounded-xl flex items-center justify-center shrink-0 font-bold">
           <span className="text-xl">🌤️</span>
         </div>
         <div>
-          <h4 className="text-xs font-bold text-textPrimary">Weather Green Tip ({weather.temp}°C, {weather.condition})</h4>
-          <p className="text-[10px] text-textSecondary font-semibold leading-relaxed mt-0.5">{weather.tip}</p>
+          <h4 className="text-xs font-bold text-textPrimary dark:text-white">
+            Weather Green Tip ({weather.temp}°C, {weather.condition})
+          </h4>
+          <p className="text-[10px] text-textSecondary dark:text-gray-400 font-semibold leading-relaxed mt-0.5">
+            {weather.tip}
+          </p>
         </div>
       </div>
-    </div>
+    </DashboardCard>
   );
 }
 
 // Air Quality Card Component
 function AirQualityCard() {
-  const { data, loading } = useAirQuality();
+  const { data, loading, error } = useAirQuality();
 
   if (loading) return <CardSkeleton height="h-24" />;
-  if (!data) return null;
+  if (error || !data) return null;
 
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
-      role="status" aria-live="polite"
-      aria-label={`Air quality: ${data.level}`}>
+    <DashboardCard 
+      className="p-4"
+      role="status" 
+      aria-live="polite"
+      aria-label={`Air quality: ${data.level}`}
+    >
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold text-gray-500 tracking-wide">
-          AIR QUALITY · BENGALURU
+        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 tracking-wide">
+          AIR QUALITY &bull; BENGALURU
         </span>
-        <span className="text-xs text-gray-400 flex items-center gap-1">
+        <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
           Live
           <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
         </span>
@@ -61,24 +81,22 @@ function AirQualityCard() {
         <div className="text-3xl">{data.icon}</div>
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold"
-              style={{ color: data.color }}>
+            <span className="text-2xl font-bold" style={{ color: data.color }}>
               AQI {data.aqi}
             </span>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full text-white"
-              style={{ backgroundColor: data.color }}>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: data.color }}>
               {data.level}
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
-            PM2.5: {data.pm25} μg/m³ · PM10: {data.pm10} μg/m³
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            PM2.5: {data.pm25} &mu;g/m³ &middot; PM10: {data.pm10} &mu;g/m³
           </p>
         </div>
       </div>
-      <p className="text-sm text-gray-600 mt-2 border-t pt-2">
+      <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 border-t border-gray-150 dark:border-gray-700 pt-2">
         {data.advice}
       </p>
-    </div>
+    </DashboardCard>
   );
 }
 
@@ -99,15 +117,15 @@ function DailyChallengeCard() {
   };
 
   const difficultyColor: Record<string, string> = {
-    easy: 'bg-green-100 text-green-700',
-    medium: 'bg-yellow-100 text-yellow-700',
-    hard: 'bg-red-100 text-red-700'
+    easy: 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400',
+    medium: 'bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400',
+    hard: 'bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400'
   };
 
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-sm border border-green-100">
+    <DashboardCard className="p-4 border-green-100 dark:border-green-900/40">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-bold text-gray-500 tracking-wide">
+        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 tracking-wide">
           🎯 TODAY'S ECO CHALLENGE
         </span>
         <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${difficultyColor[challenge.difficulty] || difficultyColor.easy}`}>
@@ -118,13 +136,13 @@ function DailyChallengeCard() {
       <div className="flex gap-3">
         <span className="text-3xl">{categoryEmoji[challenge.category] ?? '🌱'}</span>
         <div className="flex-1">
-          <h3 className="font-bold text-gray-800">
+          <h3 className="font-bold text-gray-800 dark:text-white">
             {challenge.title}
           </h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
             {challenge.description}
           </p>
-          <p className="text-sm font-semibold text-green-600 mt-2">
+          <p className="text-sm font-semibold text-green-600 dark:text-accent mt-2">
             💚 Saves ~{challenge.savingKg}kg CO₂ today
           </p>
         </div>
@@ -135,19 +153,21 @@ function DailyChallengeCard() {
         disabled={accepted}
         className={`w-full mt-3 py-2 rounded-full font-semibold text-sm transition-all
           ${accepted
-            ? 'bg-green-100 text-green-700 cursor-default'
-            : 'bg-green-700 text-white hover:bg-green-800 active:scale-[0.98]'
+            ? 'bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 cursor-default'
+            : 'bg-green-700 dark:bg-accent dark:text-gray-900 text-white hover:bg-green-800 dark:hover:bg-accent/90 active:scale-[0.98] cursor-pointer'
           }`}
-        aria-label={accepted
-          ? 'Challenge accepted'
-          : "Accept today's challenge"}
+        aria-label={accepted ? 'Challenge accepted' : "Accept today's challenge"}
       >
         {accepted ? '✅ Challenge Accepted!' : 'Accept Challenge'}
       </button>
-    </div>
+    </DashboardCard>
   );
 }
 
+/**
+ * Dashboard page displaying aggregated weekly carbon summaries,
+ * air quality values, grid status updates, dynamic challenges, and recent logs.
+ */
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading, error: authError } = useAuth();
@@ -229,10 +249,8 @@ export function Dashboard() {
         lastLogDate: new Date().toISOString().split('T')[0]
       }, { merge: true });
 
-      alert('Demo data loaded successfully! Refreshing dashboard...');
       window.location.reload();
-    } catch (err) {
-      console.error('Error seeding demo data:', err);
+    } catch {
       alert('Failed to seed demo data. Please try again.');
     } finally {
       setSeeding(false);
@@ -320,8 +338,8 @@ export function Dashboard() {
     return (
       <div className="space-y-6 max-w-5xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-4">
-          <div className="h-8 w-48 bg-gray-250 rounded animate-pulse"></div>
-          <div className="h-10 w-24 bg-gray-250 rounded-full animate-pulse"></div>
+          <div className="h-8 w-48 bg-gray-250 dark:bg-gray-700 rounded animate-pulse"></div>
+          <div className="h-10 w-24 bg-gray-250 dark:bg-gray-700 rounded-full animate-pulse"></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <LoadingSkeleton variant="ring" />
@@ -334,12 +352,12 @@ export function Dashboard() {
 
   if (error) {
     return (
-      <div className="max-w-md mx-auto mt-16 p-6 bg-white rounded-3xl shadow-lg border border-red-100 text-center">
-        <h2 className="text-xl font-bold text-red-600 mb-2">Workspace Error</h2>
-        <p className="text-sm text-textSecondary mb-6">{error}</p>
+      <div className="max-w-md mx-auto mt-16 p-6 bg-white dark:bg-gray-800 rounded-3xl shadow-lg border border-red-100 dark:border-red-950/30 text-center">
+        <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">Workspace Error</h2>
+        <p className="text-sm text-textSecondary dark:text-gray-400 mb-6">{error}</p>
         <button 
           onClick={() => window.location.reload()}
-          className="bg-primary text-white px-6 py-2.5 rounded-full font-semibold hover:bg-primary/95 transition-all text-xs"
+          className="bg-primary dark:bg-accent dark:text-gray-900 text-white px-6 py-2.5 rounded-full font-semibold hover:bg-primary/95 transition-all text-xs cursor-pointer"
         >
           Retry Connection
         </button>
@@ -352,12 +370,11 @@ export function Dashboard() {
       {/* Top Greeting header */}
       <section className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-primary tracking-tight">
-            Welcome back, {profile?.displayName || 'EcoTracer'}!
-          </h2>
-          <p className="text-xs md:text-sm text-textSecondary font-medium">
-            Let's offset carbon and preserve resources today.
-          </p>
+          <SectionHeader 
+            title={`Welcome back, ${profile?.displayName || 'EcoTracer'}!`}
+            level={1}
+            subtitle="Let's offset carbon and preserve resources today."
+          />
         </div>
 
         {/* Quick Action buttons */}
@@ -365,7 +382,7 @@ export function Dashboard() {
           <button
             onClick={() => navigate('/log')}
             aria-label="Log new carbon activity"
-            className="bg-primary hover:bg-primary/95 text-white active:scale-95 px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer"
+            className="bg-primary hover:bg-primary/95 dark:bg-accent dark:hover:bg-accent/90 dark:text-gray-900 text-white active:scale-95 px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer border-none"
           >
             <Plus size={16} />
             <span>Log Activity</span>
@@ -373,29 +390,29 @@ export function Dashboard() {
           <button
             onClick={() => navigate('/insights')}
             aria-label="Ask EcoTrace AI carbon advisor"
-            className="bg-white hover:bg-gray-50 border border-gray-150 text-textPrimary active:scale-95 px-5 py-2.5 rounded-full text-xs font-semibold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+            className="bg-white hover:bg-gray-50 dark:bg-gray-850 dark:hover:bg-gray-800 border border-gray-150 dark:border-gray-700 text-textPrimary dark:text-white active:scale-95 px-5 py-2.5 rounded-full text-xs font-semibold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
           >
             <span>Ask AI</span>
-            <ArrowRight size={14} className="text-secondary" />
+            <ArrowRight size={14} className="text-secondary dark:text-accent" />
           </button>
         </div>
       </section>
 
       {/* Demo Data Seeder Alert banner */}
       {!hasData && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-2xl p-4 flex items-center justify-between shadow-sm">
           <div>
-            <p className="font-semibold text-blue-800 text-sm">
+            <p className="font-semibold text-blue-800 dark:text-blue-400 text-sm">
               👋 First time here?
             </p>
-            <p className="text-xs text-blue-600 mt-0.5">
+            <p className="text-xs text-blue-600 dark:text-blue-300 mt-0.5">
               Load sample data to see all features in action
             </p>
           </div>
           <button
             onClick={seedDemoData}
             disabled={seeding}
-            className="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-semibold hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap cursor-pointer disabled:opacity-50"
+            className="bg-blue-600 text-white dark:bg-blue-700 px-4 py-2 rounded-full text-xs font-semibold hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 border-none"
             aria-label="Load demo data to see dashboard features"
           >
             {seeding ? 'Loading...' : 'Load Demo Data'}
@@ -411,22 +428,19 @@ export function Dashboard() {
           <CarbonScoreRing weeklyScore={weeklyEmissions} hasData={hasData} />
 
           {/* EcoScore Profile Card */}
-          <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 flex flex-col justify-center">
+          <DashboardCard className="p-6 flex flex-col justify-center">
             {!hasData ? (
               <div className="text-center py-6">
                 <div className="text-5xl mb-3">🌱</div>
-                <p className="font-bold text-green-800 text-lg">
+                <p className="font-bold text-green-800 dark:text-green-400 text-lg">
                   Your EcoScore
                 </p>
-                <p className="text-gray-500 text-sm mt-1 mb-4">
-                  Log your first activity to calculate your 
-                  personal carbon score
+                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 mb-4">
+                  Log your first activity to calculate your personal carbon score
                 </p>
                 <button
                   onClick={() => navigate('/log')}
-                  className="bg-green-700 text-white px-6 py-2.5 
-                    rounded-full font-semibold text-sm 
-                    hover:bg-green-800 transition-all cursor-pointer"
+                  className="bg-green-700 dark:bg-accent dark:text-gray-900 text-white px-6 py-2.5 rounded-full font-semibold text-sm hover:bg-green-800 transition-all cursor-pointer border-none"
                   aria-label="Log your first activity"
                 >
                   + Log First Activity
@@ -435,9 +449,9 @@ export function Dashboard() {
             ) : (
               <div className="flex flex-col space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-textPrimary uppercase tracking-wider">
+                  <span className="text-xs font-bold text-textPrimary dark:text-white uppercase tracking-wider">
                     EcoScore Profile
-                  </h4>
+                  </span>
                   <span 
                     className="text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider"
                     style={{ backgroundColor: `${ecoScoreDetails.ringColor}20`, color: ecoScoreDetails.color }}
@@ -448,20 +462,24 @@ export function Dashboard() {
                 
                 <div className="flex items-center gap-4">
                   <div 
-                    className="w-16 h-16 rounded-xl flex items-center justify-center font-extrabold text-2xl shadow-inner shrink-0"
-                    style={{ backgroundColor: `${ecoScoreDetails.ringColor}10`, color: ecoScoreDetails.color, border: `2px solid ${ecoScoreDetails.ringColor}` }}
+                    className="w-16 h-16 rounded-xl flex items-center justify-center font-extrabold text-2xl shadow-inner shrink-0 bg-opacity-10"
+                    style={{ 
+                      backgroundColor: `${ecoScoreDetails.ringColor}10`, 
+                      color: ecoScoreDetails.color, 
+                      border: `2px solid ${ecoScoreDetails.ringColor}` 
+                    }}
                   >
                     {ecoScoreDetails.score}
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-textPrimary leading-snug">
+                    <p className="text-xs font-bold text-textPrimary dark:text-white leading-snug">
                       {ecoScoreDetails.message}
                     </p>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-textSecondary font-semibold">
+                      <span className="text-[10px] text-textSecondary dark:text-gray-400 font-semibold">
                         🇮🇳 {ecoScoreDetails.vsIndia}
                       </span>
-                      <span className="text-[10px] text-textSecondary font-semibold">
+                      <span className="text-[10px] text-textSecondary dark:text-gray-400 font-semibold">
                         🌍 {ecoScoreDetails.vsGlobal}
                       </span>
                     </div>
@@ -469,42 +487,42 @@ export function Dashboard() {
                 </div>
               </div>
             )}
-          </div>
+          </DashboardCard>
 
-          {/* CO₂ Saved Counter (NEW — green gradient card) */}
+          {/* CO₂ Saved Counter */}
           <CarbonSavedCounter />
 
-          {/* Daily Eco Challenge (NEW — Gemini-powered) */}
+          {/* Daily Eco Challenge */}
           <DailyChallengeCard />
 
           {/* Streak details card */}
-          <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 flex items-center justify-between">
+          <DashboardCard className="p-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-orange-50 text-warningColor rounded-xl flex items-center justify-center font-bold">
+              <div className="w-11 h-11 bg-orange-50 dark:bg-orange-950/20 text-warningColor rounded-xl flex items-center justify-center font-bold">
                 <Flame size={22} className="fill-current animate-bounce" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-textPrimary">Logging Streak</h4>
-                <p className="text-[10px] text-textSecondary font-medium">Log daily to keep it up!</p>
+                <h4 className="text-xs font-bold text-textPrimary dark:text-white">Logging Streak</h4>
+                <p className="text-[10px] text-textSecondary dark:text-gray-400 font-medium">Log daily to keep it up!</p>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-2xl font-extrabold text-textPrimary">{currentStreak}</span>
-              <span className="text-xs text-textSecondary font-semibold block">days</span>
+              <span className="text-2xl font-extrabold text-textPrimary dark:text-white">{currentStreak}</span>
+              <span className="text-xs text-textSecondary dark:text-gray-400 font-semibold block">days</span>
             </div>
-          </div>
+          </DashboardCard>
         </div>
 
         {/* RIGHT COLUMN: Chart + Grid + AQI + Comparisons */}
         <div className="md:col-span-2 flex flex-col gap-6">
-          <WeeklyChart activities={activities} />
+          <EmissionChart activities={activities} />
 
           {/* Live Data Cards Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* Enhanced Grid Status Card (NEW — with timeline) */}
+            {/* Enhanced Grid Status Card */}
             <GridStatusCard />
 
-            {/* Air Quality Card (NEW — real AQI) */}
+            {/* Air Quality Card */}
             <AirQualityCard />
           </div>
 
@@ -518,14 +536,14 @@ export function Dashboard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Emissions statistics comparison */}
-            <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 flex flex-col justify-between space-y-4">
+            <DashboardCard className="p-6 flex flex-col justify-between space-y-4">
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-textSecondary dark:text-gray-400 mb-2">
                   Emissions Comparison
                 </h4>
-                <p className="text-[11px] text-textSecondary leading-normal">
+                <p className="text-[11px] text-textSecondary dark:text-gray-300 leading-normal">
                   Your weekly emissions total is{' '}
-                  <span className="font-bold text-textPrimary">
+                  <span className="font-bold text-textPrimary dark:text-white">
                     {weeklyEmissions.toFixed(1)} kg
                   </span>. Compared to the India weekly average ({indiaAverageWeekly.toFixed(1)} kg):
                 </p>
@@ -534,16 +552,16 @@ export function Dashboard() {
               <div className="flex items-center gap-3">
                 {weeklyEmissions < indiaAverageWeekly ? (
                   <>
-                    <div className="w-9 h-9 bg-emerald-50 text-secondary rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/20 text-secondary dark:text-accent rounded-full flex items-center justify-center shrink-0">
                       <TrendingDown size={18} />
                     </div>
-                    <span className="text-xs font-bold text-secondary">
+                    <span className="text-xs font-bold text-secondary dark:text-accent">
                       {((1 - weeklyEmissions / indiaAverageWeekly) * 100).toFixed(0)}% lower than average!
                     </span>
                   </>
                 ) : (
                   <>
-                    <div className="w-9 h-9 bg-red-50 text-dangerColor rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 bg-red-50 dark:bg-red-950/20 text-dangerColor rounded-full flex items-center justify-center shrink-0">
                       <Activity size={18} />
                     </div>
                     <span className="text-xs font-bold text-dangerColor">
@@ -553,51 +571,52 @@ export function Dashboard() {
                 )}
               </div>
 
-              <div className="border-t border-gray-100 pt-3">
-                <p className="text-[9px] text-gray-400 font-semibold">
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
+                <p className="text-[9px] text-gray-400 dark:text-gray-500 font-semibold">
                   {liveData.nationalDailyAvgKg === 5.21 
                     ? "Target benchmark based on India CEA 2023 data fallback (1.9t/year)"
                     : `Target benchmark dynamically sourced from World Bank ${new Date().getFullYear() - 2} India emissions data`}
                 </p>
               </div>
-            </div>
+            </DashboardCard>
 
             {/* Today summary card */}
-            <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 flex flex-col justify-between space-y-4">
+            <DashboardCard className="p-6 flex flex-col justify-between space-y-4">
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-textSecondary mb-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-textSecondary dark:text-gray-400 mb-2">
                   Today's Carbon Footprint
                 </h4>
-                <p className="text-[11px] text-textSecondary">
+                <p className="text-[11px] text-textSecondary dark:text-gray-300">
                   Sum total carbon release logged from activities today:
                 </p>
               </div>
 
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold text-primary">
+                <span className="text-3xl font-extrabold text-primary dark:text-white">
                   {todayEmissions.toFixed(1)}
                 </span>
-                <span className="text-sm font-semibold text-textSecondary">kg CO₂</span>
+                <span className="text-sm font-semibold text-textSecondary dark:text-gray-400">kg CO₂</span>
               </div>
-            </div>
+            </DashboardCard>
           </div>
         </div>
 
       </section>
 
       {/* Recent Activity Logs */}
-      <section className="space-y-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-textSecondary">
-          Recent Activity Logs
-        </h3>
+      <section className="space-y-4" aria-label="Recent carbon logs">
+        <SectionHeader 
+          title="Recent Activity Logs" 
+          level={3}
+        />
 
         {recentActivities.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center justify-center space-y-3">
+          <DashboardCard className="p-8 text-center flex flex-col items-center justify-center space-y-3">
             <Leaf size={24} className="text-accent" />
-            <div className="text-xs text-textSecondary max-w-xs">
-              No carbon logs saved yet. Click <span className="font-semibold text-primary">Log Activity</span> to start tracking your carbon score!
+            <div className="text-xs text-textSecondary dark:text-gray-400 max-w-xs">
+              No carbon logs saved yet. Click <span className="font-semibold text-primary dark:text-accent">Log Activity</span> to start tracking your carbon score!
             </div>
-          </div>
+          </DashboardCard>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" role="list" aria-label="Recent logged activities">
             {recentActivities.map((act) => (
@@ -609,4 +628,5 @@ export function Dashboard() {
     </main>
   );
 }
+
 export default Dashboard;

@@ -1,104 +1,142 @@
+import { EMISSION_FACTORS, INDIA_DAILY_AVG_CO2, GLOBAL_DAILY_AVG_CO2, SAFETY_LIMITS } from '../constants';
+
 /**
- * EcoTrace Carbon Footprint Calculations
- * All calculations return values in kg of CO2.
- * Zeros and negative inputs default to 0.
+ * Calculations result properties of the user score compared to averages.
  */
-
-export function calculateTransportCO2(type: string, distanceKm: number): number {
-  if (distanceKm <= 0) return 0;
-  
-  switch (type) {
-    case 'car_petrol':
-      return distanceKm * 0.21;
-    case 'car_diesel':
-      return distanceKm * 0.17;
-    case 'car_electric':
-      return distanceKm * 0.05;
-    case 'bus':
-      return distanceKm * 0.089;
-    case 'train':
-      return distanceKm * 0.041;
-    case 'flight':
-      return distanceKm * 0.255;
-    case 'bike_walk':
-      return 0;
-    default:
-      return 0;
-  }
-}
-
-export function calculateFoodCO2(type: string, servings: number): number {
-  if (servings <= 0) return 0;
-
-  switch (type) {
-    case 'meat_meal':
-      return servings * 6.61;
-    case 'vegetarian_meal':
-      return servings * 1.69;
-    case 'vegan_meal':
-      return servings * 1.05;
-    case 'dairy':
-      return servings * 3.2;
-    default:
-      return 0;
-  }
-}
-
-export function calculateEnergyCO2(type: string, quantity: number, customFactor?: number): number {
-  if (quantity <= 0) return 0;
-
-  switch (type) {
-    case 'electricity_kwh':
-      return quantity * (customFactor !== undefined ? customFactor : 0.82);
-    case 'lpg_kg':
-      return quantity * 2.98;
-    case 'ac_hours':
-      return quantity * 1.25;
-    default:
-      return 0;
-  }
-}
-
-export function calculateShoppingCO2(type: string, quantity: number): number {
-  if (quantity <= 0) return 0;
-
-  switch (type) {
-    case 'clothing':
-      return quantity * 10.0;
-    case 'electronics':
-      return quantity * 70.0;
-    case 'plastic_item':
-      return quantity * 6.0;
-    default:
-      return 0;
-  }
-}
-
 export interface EcoScore {
   score: number;
   label: 'Carbon Hero' | 'On Track' | 'Needs Work' | 'Critical';
   color: string;
   ringColor: string;
   message: string;
-  vsIndia: string;    // vs India average
-  vsGlobal: string;  // vs global average
+  vsIndia: string;
+  vsGlobal: string;
 }
 
+/**
+ * Calculates total carbon emissions from transportation activities.
+ * 
+ * @param type The type of transport used (e.g. car_petrol, flight, bus, etc.)
+ * @param distanceKm The total distance traveled in kilometers.
+ * @returns The calculated CO2 emissions in kilograms (defaults to 0 for negative/zero distance).
+ */
+export function calculateTransportCO2(type: string, distanceKm: number): number {
+  if (distanceKm <= 0) return 0;
+  
+  const factors = EMISSION_FACTORS.transport;
+  switch (type) {
+    case 'car_petrol':
+      return distanceKm * factors.car_petrol;
+    case 'car_diesel':
+      return distanceKm * factors.car_diesel;
+    case 'car_electric':
+      return distanceKm * factors.car_electric;
+    case 'bus':
+      return distanceKm * factors.bus;
+    case 'train':
+      return distanceKm * factors.train;
+    case 'flight':
+      return distanceKm * factors.flight;
+    case 'bike_walk':
+      return factors.bike_walk;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Calculates total carbon emissions from food consumption.
+ * 
+ * @param type The type of meal or food consumed (e.g. meat_meal, dairy, etc.)
+ * @param servings The number of servings consumed.
+ * @returns The calculated CO2 emissions in kilograms (defaults to 0 for negative/zero servings).
+ */
+export function calculateFoodCO2(type: string, servings: number): number {
+  if (servings <= 0) return 0;
+
+  const factors = EMISSION_FACTORS.food;
+  switch (type) {
+    case 'meat_meal':
+      return servings * factors.meat_meal;
+    case 'vegetarian_meal':
+      return servings * factors.vegetarian_meal;
+    case 'vegan_meal':
+      return servings * factors.vegan_meal;
+    case 'dairy':
+      return servings * factors.dairy;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Calculates total carbon emissions from household energy usage.
+ * 
+ * @param type The type of energy used (e.g. electricity_kwh, lpg_kg, ac_hours)
+ * @param quantity The amount consumed (e.g. kWh, kg, or hours)
+ * @param customFactor Optional custom multiplier for electricity grid intensity
+ * @returns The calculated CO2 emissions in kilograms (defaults to 0 for negative/zero quantities).
+ */
+export function calculateEnergyCO2(type: string, quantity: number, customFactor?: number): number {
+  if (quantity <= 0) return 0;
+
+  const factors = EMISSION_FACTORS.energy;
+  switch (type) {
+    case 'electricity_kwh':
+      return quantity * (customFactor !== undefined ? customFactor : factors.electricity_kwh);
+    case 'lpg_kg':
+      return quantity * factors.lpg_kg;
+    case 'ac_hours':
+      return quantity * factors.ac_hours;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Calculates total carbon emissions from retail shopping items.
+ * 
+ * @param type The type of item purchased (e.g. clothing, electronics, plastic_item)
+ * @param quantity The number of items purchased.
+ * @returns The calculated CO2 emissions in kilograms (defaults to 0 for negative/zero quantities).
+ */
+export function calculateShoppingCO2(type: string, quantity: number): number {
+  if (quantity <= 0) return 0;
+
+  const factors = EMISSION_FACTORS.shopping;
+  switch (type) {
+    case 'clothing':
+      return quantity * factors.clothing;
+    case 'electronics':
+      return quantity * factors.electronics;
+    case 'plastic_item':
+      return quantity * factors.plastic_item;
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Compiles a comprehensive EcoScore metrics analysis.
+ * 
+ * @param monthlyKg The user's accumulated carbon footprint for the past 30 days in kg CO2.
+ * @param nationalDailyAvgKg The country's daily average emissions (defaults to India avg: 5.21kg).
+ * @returns A detailed EcoScore object with ratings, labels, and comparisons.
+ */
 export const calculateEcoScore = (
   monthlyKg: number,
-  nationalDailyAvgKg: number = 5.21
+  nationalDailyAvgKg: number = INDIA_DAILY_AVG_CO2
 ): EcoScore => {
   const annualKg = monthlyKg * 12;
   const score = Math.max(0, Math.round(
-    100 - (annualKg / 4000) * 100
+    100 - (annualKg / SAFETY_LIMITS.ANNUAL_TARGET_CO2) * 100
   ));
   const userDailyAvg = monthlyKg / 30;
   const vsIndiaPercent = Math.round(
-    ((nationalDailyAvgKg - userDailyAvg) / 
-      nationalDailyAvgKg) * 100
+    ((nationalDailyAvgKg - userDailyAvg) / nationalDailyAvgKg) * 100
   );
   const vsGlobalPercent = Math.round(
-    ((10.96 - userDailyAvg) / 10.96) * 100
+    ((GLOBAL_DAILY_AVG_CO2 - userDailyAvg) / GLOBAL_DAILY_AVG_CO2) * 100
   );
   const vsIndia = vsIndiaPercent > 0
     ? `${vsIndiaPercent}% better than India avg`

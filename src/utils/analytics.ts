@@ -1,5 +1,5 @@
 import { logEvent } from 'firebase/analytics';
-import { analytics } from '../firebase';
+import { analytics } from '../services/firebase';
 
 const safeLog = (eventName: string, params?: object) => {
   if (!analytics) return; // silently skip if blocked

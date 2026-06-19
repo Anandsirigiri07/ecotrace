@@ -9,27 +9,32 @@ import {
   Sparkles 
 } from 'lucide-react';
 import { CarbonActivity } from '../types';
+import DashboardCard from './DashboardCard';
 
 interface ActivityCardProps {
   activity: CarbonActivity;
 }
 
+/**
+ * Renders a single activity entry card.
+ * Expands to show Gemini AI generated eco tips, fully optimized for Dark Mode.
+ */
 export function ActivityCard({ activity }: ActivityCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   // Pick matching icon and color scheme based on category
   let Icon = ShoppingBag;
-  let colorClass = 'bg-[#F3E8FF] text-[#A855F7]'; // shopping purple
+  let colorClass = 'bg-[#F3E8FF] text-[#A855F7] dark:bg-purple-950/30 dark:text-purple-400'; // shopping purple
   
   if (activity.category === 'transport') {
     Icon = Car;
-    colorClass = 'bg-[#E0F2FE] text-[#0284C7]'; // transport blue
+    colorClass = 'bg-[#E0F2FE] text-[#0284C7] dark:bg-sky-950/30 dark:text-sky-400'; // transport blue
   } else if (activity.category === 'food') {
     Icon = Utensils;
-    colorClass = 'bg-[#FEF3C7] text-[#D97706]'; // food orange
+    colorClass = 'bg-[#FEF3C7] text-[#D97706] dark:bg-amber-950/30 dark:text-amber-455'; // food orange
   } else if (activity.category === 'energy') {
     Icon = Zap;
-    colorClass = 'bg-[#FEF08A] text-[#CA8A04]'; // energy yellow
+    colorClass = 'bg-[#FEF08A] text-[#CA8A04] dark:bg-yellow-950/30 dark:text-yellow-400'; // energy yellow
   }
 
   // Format activity details label
@@ -40,15 +45,13 @@ export function ActivityCard({ activity }: ActivityCardProps) {
   };
 
   return (
-    <div 
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-accent/35 transition-all duration-200 overflow-hidden"
-      role="listitem"
-    >
+    <DashboardCard className="overflow-hidden">
       <div 
-        className="p-4 flex items-center justify-between cursor-pointer"
+        className="p-4 flex items-center justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-secondary dark:focus:ring-accent"
         onClick={() => setExpanded(!expanded)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
             setExpanded(!expanded);
           }
         }}
@@ -63,10 +66,10 @@ export function ActivityCard({ activity }: ActivityCardProps) {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold text-textPrimary capitalize">
+            <h4 className="text-sm font-semibold text-textPrimary dark:text-white capitalize">
               {getReadableType(activity.activityType)}
             </h4>
-            <p className="text-xs text-textSecondary font-medium">
+            <p className="text-xs text-textSecondary dark:text-gray-400 font-medium">
               {activity.quantity} {activity.unit} &middot; {activity.date}
             </p>
           </div>
@@ -74,30 +77,30 @@ export function ActivityCard({ activity }: ActivityCardProps) {
 
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <span className="text-sm font-extrabold text-textPrimary">
+            <span className="text-sm font-extrabold text-textPrimary dark:text-white">
               {activity.co2Kg.toFixed(1)}
             </span>
-            <span className="text-[10px] font-medium text-textSecondary block">kg CO₂</span>
+            <span className="text-[10px] font-medium text-textSecondary dark:text-gray-400 block">kg CO₂</span>
           </div>
 
-          <div className="text-gray-400 hover:text-gray-600 transition-colors" aria-hidden="true">
+          <div className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" aria-hidden="true">
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
         </div>
       </div>
 
       {expanded && (
-        <div className="px-4 pb-4 pt-2 bg-mintBg/45 border-t border-gray-50 flex items-start gap-2.5 text-xs text-textSecondary">
-          <Sparkles size={14} className="text-secondary shrink-0 mt-0.5" aria-hidden="true" />
+        <div className="px-4 pb-4 pt-2 bg-mintBg/45 dark:bg-gray-800/80 border-t border-gray-50 dark:border-gray-700 flex items-start gap-2.5 text-xs text-textSecondary dark:text-gray-350">
+          <Sparkles size={14} className="text-secondary dark:text-accent shrink-0 mt-0.5" aria-hidden="true" />
           <div>
-            <span className="font-semibold text-secondary block mb-0.5">Gemini Eco-Tip:</span>
+            <span className="font-semibold text-secondary dark:text-accent block mb-0.5">Gemini Eco-Tip:</span>
             <p className="italic">
               {activity.geminiTip || "Great job tracking! Small actions aggregate into significant change. Check the Insights tab for deep-dive analyses."}
             </p>
           </div>
         </div>
       )}
-    </div>
+    </DashboardCard>
   );
 }
 export default ActivityCard;

@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { trackEvent } from './analytics';
 import { logEvent } from 'firebase/analytics';
 
@@ -5,12 +6,12 @@ import { logEvent } from 'firebase/analytics';
 let mockAnalyticsInstance: unknown = {};
 
 // Mock firebase/analytics
-jest.mock('firebase/analytics', () => ({
-  logEvent: jest.fn()
+vi.mock('firebase/analytics', () => ({
+  logEvent: vi.fn()
 }));
 
-// Mock ../firebase with a dynamic getter for analytics
-jest.mock('../firebase', () => ({
+// Mock ../services/firebase with a dynamic getter for analytics
+vi.mock('../services/firebase', () => ({
   get analytics() {
     return mockAnalyticsInstance;
   }
@@ -18,7 +19,7 @@ jest.mock('../firebase', () => ({
 
 describe('analytics tracking', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockAnalyticsInstance = {}; // Reset to default mock instance
   });
 
@@ -38,10 +39,10 @@ describe('analytics tracking', () => {
   });
 
   it('handles logEvent failure gracefully', () => {
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     
     // Make logEvent throw an error
-    (logEvent as jest.Mock).mockImplementationOnce(() => {
+    (logEvent as any).mockImplementationOnce(() => {
       throw new Error('Analytics failed');
     });
 

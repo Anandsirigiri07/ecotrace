@@ -7,7 +7,7 @@ import {
   AuthError
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db, googleProvider } from '../firebase';
+import { auth, db, googleProvider } from '../services/firebase';
 import { UserProfile } from '../types';
 
 export const useAuth = () => {
