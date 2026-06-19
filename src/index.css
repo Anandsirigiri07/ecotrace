@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-mintBg text-textPrimary font-sans antialiased;
+  }
+
+  /* Accessible Focus Ring styling across all elements */
+  :focus-visible {
+    @apply outline-none ring-2 ring-secondary ring-offset-2;
+  }
+}
+
+@layer utilities {
+  /* Animate custom pulsing loader */
+  .animate-pulse-fast {
+    animation: pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* Base scrollbar styles for premium look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-secondary/20 rounded-full hover:bg-secondary/40;
+}
