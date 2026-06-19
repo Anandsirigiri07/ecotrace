@@ -16,6 +16,8 @@ import { useAirQuality } from '../hooks/useAirQuality';
 import { GridStatusCard } from '../components/GridStatusCard';
 import { CarbonSavedCounter } from '../components/CarbonSavedCounter';
 import { useDailyChallenge } from '../hooks/useDailyChallenge';
+import { collection, doc, addDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 // Weather Card Component
 function WeatherCard({ weather }: { weather: any }) {
@@ -149,8 +151,93 @@ function DailyChallengeCard() {
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading, error: authError } = useAuth();
-  const { activities, loading: carbonLoading, error: carbonError } = useCarbon(user ? user.uid : null);
+  const { activities, summary, loading: carbonLoading, error: carbonError } = useCarbon(user ? user.uid : null);
   const liveData = useLiveData();
+  const [seeding, setSeeding] = useState(false);
+
+  const hasData = activities.length > 0;
+  const monthlyKg = summary?.monthKg ?? 0;
+
+  const seedDemoData = async () => {
+    if (!user) return;
+    setSeeding(true);
+    try {
+      const userActivitiesRef = collection(db, 'users', user.uid, 'activities');
+      const batchPromises = [];
+      
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        
+        // Food daily activity
+        const foodType = i % 3 === 0 ? 'meat_meal' : i % 3 === 1 ? 'vegetarian_meal' : 'vegan_meal';
+        const foodCO2 = foodType === 'meat_meal' ? 6.61 : foodType === 'vegetarian_meal' ? 1.69 : 1.05;
+        batchPromises.push(addDoc(userActivitiesRef, {
+          category: 'food',
+          activityType: foodType,
+          quantity: 2,
+          unit: 'servings',
+          co2Kg: foodCO2 * 2,
+          date: dateStr,
+          createdAt: new Date(d.getTime() - 1000 * 60 * 60),
+          userId: user.uid,
+          geminiTip: 'Eating plant-based meals significantly reduces your footprint. Keep it up!'
+        }));
+
+        // Transport on 5 out of 7 days
+        if (i % 7 !== 0 && i % 7 !== 6) {
+          const transType = i % 2 === 0 ? 'car_petrol' : 'bus';
+          const distance = i % 2 === 0 ? 15 : 10;
+          const transCO2 = transType === 'car_petrol' ? distance * 0.21 : distance * 0.089;
+          batchPromises.push(addDoc(userActivitiesRef, {
+            category: 'transport',
+            activityType: transType,
+            quantity: distance,
+            unit: 'km',
+            co2Kg: transCO2,
+            date: dateStr,
+            createdAt: new Date(d.getTime() - 1000 * 60 * 30),
+            userId: user.uid,
+            geminiTip: transType === 'car_petrol' ? 'Consider carpooling or using public transit next time!' : 'Great job taking the bus! You saved emissions.'
+          }));
+        }
+
+        // Energy once a week
+        if (i % 7 === 1) {
+          batchPromises.push(addDoc(userActivitiesRef, {
+            category: 'energy',
+            activityType: 'electricity_kwh',
+            quantity: 30,
+            unit: 'kWh',
+            co2Kg: 30 * 0.82,
+            date: dateStr,
+            createdAt: d,
+            userId: user.uid,
+            geminiTip: 'Optimize your cooling systems and switch off idle electronics to reduce electricity use.'
+          }));
+        }
+      }
+
+      await Promise.all(batchPromises);
+
+      // Update user streak in user profile info
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(userRef, {
+        currentStreak: 15,
+        longestStreak: 15,
+        lastLogDate: new Date().toISOString().split('T')[0]
+      }, { merge: true });
+
+      alert('Demo data loaded successfully! Refreshing dashboard...');
+      window.location.reload();
+    } catch (err) {
+      console.error('Error seeding demo data:', err);
+      alert('Failed to seed demo data. Please try again.');
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const loading = authLoading || carbonLoading;
   const error = authError || carbonError;
@@ -294,48 +381,94 @@ export function Dashboard() {
         </div>
       </section>
 
+      {/* Demo Data Seeder Alert banner */}
+      {!hasData && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div>
+            <p className="font-semibold text-blue-800 text-sm">
+              👋 First time here?
+            </p>
+            <p className="text-xs text-blue-600 mt-0.5">
+              Load sample data to see all features in action
+            </p>
+          </div>
+          <button
+            onClick={seedDemoData}
+            disabled={seeding}
+            className="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-semibold hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap cursor-pointer disabled:opacity-50"
+            aria-label="Load demo data to see dashboard features"
+          >
+            {seeding ? 'Loading...' : 'Load Demo Data'}
+          </button>
+        </div>
+      )}
+
       {/* Main Grid statistics layout */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
         {/* LEFT COLUMN: Score + Savings + Challenge */}
         <div className="flex flex-col gap-6">
-          <CarbonScoreRing weeklyScore={weeklyEmissions} targetScore={indiaAverageWeekly} />
+          <CarbonScoreRing weeklyScore={weeklyEmissions} hasData={hasData} />
 
           {/* EcoScore Profile Card */}
-          <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 flex flex-col space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-textPrimary uppercase tracking-wider">
-                EcoScore Profile
-              </h4>
-              <span 
-                className="text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider"
-                style={{ backgroundColor: `${ecoScoreDetails.ringColor}20`, color: ecoScoreDetails.color }}
-              >
-                {ecoScoreDetails.label}
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <div 
-                className="w-16 h-16 rounded-xl flex items-center justify-center font-extrabold text-2xl shadow-inner shrink-0"
-                style={{ backgroundColor: `${ecoScoreDetails.ringColor}10`, color: ecoScoreDetails.color, border: `2px solid ${ecoScoreDetails.ringColor}` }}
-              >
-                {ecoScoreDetails.score}
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-textPrimary leading-snug">
-                  {ecoScoreDetails.message}
+          <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 flex flex-col justify-center">
+            {!hasData ? (
+              <div className="text-center py-6">
+                <div className="text-5xl mb-3">🌱</div>
+                <p className="font-bold text-green-800 text-lg">
+                  Your EcoScore
                 </p>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-textSecondary font-semibold">
-                    🇮🇳 {ecoScoreDetails.vsIndia}
-                  </span>
-                  <span className="text-[10px] text-textSecondary font-semibold">
-                    🌍 {ecoScoreDetails.vsGlobal}
+                <p className="text-gray-500 text-sm mt-1 mb-4">
+                  Log your first activity to calculate your 
+                  personal carbon score
+                </p>
+                <button
+                  onClick={() => navigate('/log')}
+                  className="bg-green-700 text-white px-6 py-2.5 
+                    rounded-full font-semibold text-sm 
+                    hover:bg-green-800 transition-all cursor-pointer"
+                  aria-label="Log your first activity"
+                >
+                  + Log First Activity
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-textPrimary uppercase tracking-wider">
+                    EcoScore Profile
+                  </h4>
+                  <span 
+                    className="text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider"
+                    style={{ backgroundColor: `${ecoScoreDetails.ringColor}20`, color: ecoScoreDetails.color }}
+                  >
+                    {ecoScoreDetails.label}
                   </span>
                 </div>
+                
+                <div className="flex items-center gap-4">
+                  <div 
+                    className="w-16 h-16 rounded-xl flex items-center justify-center font-extrabold text-2xl shadow-inner shrink-0"
+                    style={{ backgroundColor: `${ecoScoreDetails.ringColor}10`, color: ecoScoreDetails.color, border: `2px solid ${ecoScoreDetails.ringColor}` }}
+                  >
+                    {ecoScoreDetails.score}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-textPrimary leading-snug">
+                      {ecoScoreDetails.message}
+                    </p>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-textSecondary font-semibold">
+                        🇮🇳 {ecoScoreDetails.vsIndia}
+                      </span>
+                      <span className="text-[10px] text-textSecondary font-semibold">
+                        🌍 {ecoScoreDetails.vsGlobal}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* CO₂ Saved Counter (NEW — green gradient card) */}
