@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Flame, Plus, ArrowRight, Activity, TrendingDown, Leaf } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -12,6 +12,10 @@ import { CardSkeleton } from '../components/LiveDataSkeleton';
 import ActivityHeatmap from '../components/ActivityHeatmap';
 import { calculateEcoScore } from '../utils/carbonCalc';
 import { trackEvent } from '../utils/analytics';
+import { useAirQuality } from '../hooks/useAirQuality';
+import { GridStatusCard } from '../components/GridStatusCard';
+import { CarbonSavedCounter } from '../components/CarbonSavedCounter';
+import { useDailyChallenge } from '../hooks/useDailyChallenge';
 
 // Weather Card Component
 function WeatherCard({ weather }: { weather: any }) {
@@ -31,34 +35,113 @@ function WeatherCard({ weather }: { weather: any }) {
   );
 }
 
-// Grid Status Card Component
-function GridStatusCard({ data }: { data: any }) {
-  const hour = new Date().getHours();
-  const isPeak = hour >= 10 && hour <= 20;
-  const labelText = isPeak ? 'HIGH CARBON GRID 🔴' : 'MODERATE GRID 🟡';
-  const labelTip = isPeak 
-    ? 'Avoid heavy appliances now. Grid is coal-heavy.' 
-    : 'Okay to use appliances. Prefer evening hours.';
-  const labelColor = isPeak 
-    ? 'text-red-600 bg-red-50' 
-    : 'text-yellow-600 bg-yellow-50';
+// Air Quality Card Component
+function AirQualityCard() {
+  const { data, loading } = useAirQuality();
+
+  if (loading) return <CardSkeleton height="h-24" />;
+  if (!data) return null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-md p-5 border border-gray-100 flex items-center justify-between transition-all duration-200 hover:shadow-lg">
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+      role="status" aria-live="polite"
+      aria-label={`Air quality: ${data.level}`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-bold text-gray-500 tracking-wide">
+          AIR QUALITY · BENGALURU
+        </span>
+        <span className="text-xs text-gray-400 flex items-center gap-1">
+          Live
+          <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+        </span>
+      </div>
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 bg-orange-50 text-warningColor rounded-xl flex items-center justify-center shrink-0 font-bold">
-          <span className="text-xl">⚡</span>
-        </div>
+        <div className="text-3xl">{data.icon}</div>
         <div>
           <div className="flex items-center gap-2">
-            <h4 className="text-xs font-bold text-textPrimary">Live Grid Intensity</h4>
-            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${labelColor}`}>{labelText}</span>
+            <span className="text-2xl font-bold"
+              style={{ color: data.color }}>
+              AQI {data.aqi}
+            </span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full text-white"
+              style={{ backgroundColor: data.color }}>
+              {data.level}
+            </span>
           </div>
-          <p className="text-[10px] text-textSecondary font-semibold mt-0.5">
-            Current factor: <span className="font-bold text-textPrimary">{data.gridIntensity.toFixed(2)} kg CO₂/kWh</span> &middot; {labelTip}
+          <p className="text-xs text-gray-500 mt-1">
+            PM2.5: {data.pm25} μg/m³ · PM10: {data.pm10} μg/m³
           </p>
         </div>
       </div>
+      <p className="text-sm text-gray-600 mt-2 border-t pt-2">
+        {data.advice}
+      </p>
+    </div>
+  );
+}
+
+// Daily Challenge Card Component
+function DailyChallengeCard() {
+  const { user } = useAuth();
+  const { challenge, loading } = useDailyChallenge(user?.uid || '');
+  const [accepted, setAccepted] = useState(false);
+
+  if (loading) return <CardSkeleton height="h-32" />;
+  if (!challenge) return null;
+
+  const categoryEmoji: Record<string, string> = {
+    transport: '🚌',
+    food: '🥗',
+    energy: '⚡',
+    shopping: '🛍️'
+  };
+
+  const difficultyColor: Record<string, string> = {
+    easy: 'bg-green-100 text-green-700',
+    medium: 'bg-yellow-100 text-yellow-700',
+    hard: 'bg-red-100 text-red-700'
+  };
+
+  return (
+    <div className="bg-white rounded-2xl p-4 shadow-sm border border-green-100">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-bold text-gray-500 tracking-wide">
+          🎯 TODAY'S ECO CHALLENGE
+        </span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${difficultyColor[challenge.difficulty] || difficultyColor.easy}`}>
+          {challenge.difficulty}
+        </span>
+      </div>
+
+      <div className="flex gap-3">
+        <span className="text-3xl">{categoryEmoji[challenge.category] ?? '🌱'}</span>
+        <div className="flex-1">
+          <h3 className="font-bold text-gray-800">
+            {challenge.title}
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            {challenge.description}
+          </p>
+          <p className="text-sm font-semibold text-green-600 mt-2">
+            💚 Saves ~{challenge.savingKg}kg CO₂ today
+          </p>
+        </div>
+      </div>
+
+      <button
+        onClick={() => setAccepted(true)}
+        disabled={accepted}
+        className={`w-full mt-3 py-2 rounded-full font-semibold text-sm transition-all
+          ${accepted
+            ? 'bg-green-100 text-green-700 cursor-default'
+            : 'bg-green-700 text-white hover:bg-green-800 active:scale-[0.98]'
+          }`}
+        aria-label={accepted
+          ? 'Challenge accepted'
+          : "Accept today's challenge"}
+      >
+        {accepted ? '✅ Challenge Accepted!' : 'Accept Challenge'}
+      </button>
     </div>
   );
 }
@@ -144,7 +227,6 @@ export function Dashboard() {
 
   // Streak counter details
   const currentStreak = profile?.currentStreak || 0;
-  const country = profile?.country || 'India';
   const indiaAverageWeekly = Math.round(liveData.nationalDailyAvgKg * 7 * 100) / 100;
 
   if (loading) {
@@ -215,7 +297,7 @@ export function Dashboard() {
       {/* Main Grid statistics layout */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        {/* Animated Score Ring and Streak widget */}
+        {/* LEFT COLUMN: Score + Savings + Challenge */}
         <div className="flex flex-col gap-6">
           <CarbonScoreRing weeklyScore={weeklyEmissions} targetScore={indiaAverageWeekly} />
 
@@ -256,15 +338,11 @@ export function Dashboard() {
             </div>
           </div>
 
-          {liveData.weather === null 
-            ? <CardSkeleton height="h-20" /> 
-            : <WeatherCard weather={liveData.weather} />
-          }
+          {/* CO₂ Saved Counter (NEW — green gradient card) */}
+          <CarbonSavedCounter />
 
-          {liveData.gridIntensity === 0.82 && liveData.gridIndex === 'moderate'
-            ? <CardSkeleton height="h-20" />
-            : <GridStatusCard data={liveData} />
-          }
+          {/* Daily Eco Challenge (NEW — Gemini-powered) */}
+          <DailyChallengeCard />
 
           {/* Streak details card */}
           <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 flex items-center justify-between">
@@ -284,10 +362,25 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Weekly Trend Chart & Comparisons */}
+        {/* RIGHT COLUMN: Chart + Grid + AQI + Comparisons */}
         <div className="md:col-span-2 flex flex-col gap-6">
           <WeeklyChart activities={activities} />
 
+          {/* Live Data Cards Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Enhanced Grid Status Card (NEW — with timeline) */}
+            <GridStatusCard />
+
+            {/* Air Quality Card (NEW — real AQI) */}
+            <AirQualityCard />
+          </div>
+
+          {liveData.weather === null
+            ? <CardSkeleton height="h-20" />
+            : <WeatherCard weather={liveData.weather} />
+          }
+
+          {/* Heatmap */}
           <ActivityHeatmap activities={activities} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
