@@ -1,27 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { DEFAULT_CHALLENGES } from '../constants';
 import { useQuery } from './useQuery';
-
-const safetySettings = [
-  {
-    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-];
 
 export interface DailyChallenge {
   title: string;
@@ -35,7 +15,7 @@ export interface DailyChallenge {
 /**
  * Custom hook to manage and fetch the personalized daily eco-challenge using a query cache.
  * Attempts to retrieve a cached challenge from Firestore, falls back to generating a fresh 
- * one via the Gemini API, and provides a local fallback array if the API is offline.
+ * one via the backend Gemini proxy API, and provides a local fallback array if the API is offline.
  * 
  * @param userId The authenticated user's ID
  * @returns {challenge, loading} The active daily challenge and loading state.
@@ -58,46 +38,26 @@ export const useDailyChallenge = (userId: string) => {
           return snap.data() as DailyChallenge;
         }
 
-        // Generate fresh with Gemini
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-        if (!apiKey) {
-          throw new Error('API key missing');
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-pro',
-          safetySettings
+        // Generate fresh with Gemini via backend proxy
+        const response = await fetch('/api/gemini/challenge', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ today }),
         });
 
-        const dayName = new Date().toLocaleDateString(
-          'en-IN', { weekday: 'long' }
-        );
+        if (!response.ok) {
+          throw new Error(`Server returned status ${response.status}`);
+        }
 
-        const result = await model.generateContent(`
-          Generate ONE eco challenge for a Bengaluru
-          resident for ${dayName}.
-          Return ONLY valid JSON, no markdown fences:
-          {
-            "title": "short action title",
-            "description": "specific how-to for Bengaluru",
-            "savingKg": 0.0,
-            "category": "transport|food|energy|shopping",
-            "difficulty": "easy|medium|hard",
-            "date": "${today}"
-          }
-          Make it specific, achievable today,
-          and India-relevant.
-        `);
-
-        const text = result.response.text();
-        const clean = text.replace(/```json|```/g, '').trim();
-        const parsed = JSON.parse(clean) as DailyChallenge;
+        const parsed = await response.json() as DailyChallenge;
 
         // Cache in Firestore for today
         await setDoc(ref, parsed);
         return parsed;
-      } catch {
+      } catch (err) {
+        console.warn('Failed to load challenge from Gemini proxy, using fallback:', err);
         // Fallback challenges mapped from centralized constants
         const index = new Date().getDate() % DEFAULT_CHALLENGES.length;
         const selected = DEFAULT_CHALLENGES[index];

@@ -282,6 +282,183 @@ app.post('/api/gemini/insights', async (req, res) => {
   }
 });
 
+// 6. 7-Day eco action plan proxy
+app.post('/api/gemini/plan', async (req, res) => {
+  const { activities, liveData, userProfile } = req.body;
+  if (!activities || !liveData || !userProfile) {
+    return res.status(400).json({ error: 'Missing activities, liveData, or userProfile in request' });
+  }
+
+  // Calculate category breakdown
+  const byCategory = activities.reduce((acc: Record<string, number>, a: any) => {
+    acc[a.category] = (acc[a.category] || 0) + a.co2Kg;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const totalKg = Object.values(byCategory).reduce((s: number, v: number) => s + v, 0);
+
+  const prompt = `
+  You are an expert carbon footprint advisor with deep knowledge of Indian lifestyle patterns.
+  
+  USER PROFILE:
+  - Location: Bengaluru, India
+  - Diet: ${userProfile.dietPreference || 'vegetarian'}
+  - Last 30 days total: ${totalKg.toFixed(2)}kg CO2
+  
+  EMISSION BREAKDOWN:
+  ${Object.entries(byCategory)
+    .sort(([,a],[,b]) => b - a)
+    .map(([cat, kg]) => 
+      `- ${cat}: ${kg.toFixed(2)}kg (${totalKg > 0 ? ((kg/totalKg)*100).toFixed(1) : 0}% of total)`)
+    .join('\n')}
+  
+  REAL-TIME CONTEXT:
+  - Current grid intensity: ${liveData.gridIntensity} kgCO2/kWh
+    (${liveData.gridIndex} — ${
+      liveData.gridIndex === 'high' 
+      ? 'peak hours, coal heavy' 
+      : 'off-peak, more renewables'})
+  - Bengaluru weather: ${liveData.weather?.temp || 27}°C, ${liveData.weather?.condition || 'clear'}
+  - India national average: ${liveData.nationalDailyAvgKg}kg/day
+  - User vs average: ${
+      totalKg/30 < liveData.nationalDailyAvgKg 
+      ? `${(((liveData.nationalDailyAvgKg - totalKg/30) / liveData.nationalDailyAvgKg)*100).toFixed(1)}% BETTER`
+      : `${(((totalKg/30 - liveData.nationalDailyAvgKg) / liveData.nationalDailyAvgKg)*100).toFixed(1)}% WORSE`
+    } than national average
+  
+  ECOSCOPE ANALYSIS:
+  Using formula: max(0, 100 - (annualKg / 4000) * 100)
+  User annual projection: ${(totalKg/30*365).toFixed(0)}kg
+  EcoScore: ${Math.max(0, Math.round(100 - ((totalKg/30*365) / 4000) * 100))}/100
+  
+  Generate a PERSONALIZED 7-DAY ECO ACTION PLAN.
+  Return a JSON object conforming exactly to this schema:
+  {
+    "ecoScore": number,
+    "scoreLabel": "Carbon Hero" | "On Track" | "Needs Work" | "Critical",
+    "weeklyTarget": number,
+    "topInsight": "one powerful sentence about their data",
+    "actions": [
+      {
+        "day": number,
+        "action": "specific action for Bengaluru resident",
+        "category": "transport" | "food" | "energy" | "shopping",
+        "savingKg": number,
+        "difficulty": "easy" | "medium" | "hard",
+        "localContext": "India/Bengaluru specific detail"
+      }
+    ],
+    "quickWins": [
+      {
+        "title": "string",
+        "impact": "X kg CO2 saved per month",
+        "howTo": "specific step for Bengaluru"
+      }
+    ],
+    "monthlyChallenge": {
+      "title": "string",
+      "description": "string", 
+      "targetReductionKg": number,
+      "reward": "badge name if achieved"
+    }
+  }
+  `;
+
+  try {
+    const ai = getGeminiClient();
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      }
+    });
+
+    const responseText = result.text || '{}';
+    const parsed = JSON.parse(responseText.trim());
+    res.json(parsed);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Gemini plan generation error, using fallback:', errorMsg);
+    
+    // Fallback static plan
+    res.json({
+      ecoScore: 65,
+      scoreLabel: 'On Track',
+      weeklyTarget: 32.5,
+      topInsight: 'Focus on transport — it is typically 40% of urban Indian carbon footprints.',
+      actions: [
+        { day: 1, action: 'Take metro instead of cab', category: 'transport', savingKg: 3.2, difficulty: 'easy', localContext: 'Bengaluru Namma Metro covers most IT corridors' },
+        { day: 2, action: 'Switch to vegetarian lunch', category: 'food', savingKg: 5.0, difficulty: 'easy', localContext: 'Most Bengaluru canteens have excellent veg options' },
+        { day: 3, action: 'Set AC temperature to 24°C', category: 'energy', savingKg: 1.5, difficulty: 'easy', localContext: 'Every degree above 20 saves ~6% energy' },
+        { day: 4, action: 'Walk to local shop for groceries', category: 'transport', savingKg: 1.2, difficulty: 'easy', localContext: 'Bengaluru local layouts are walkable' },
+        { day: 5, action: 'Choose reusable bag over plastic bag', category: 'shopping', savingKg: 0.8, difficulty: 'easy', localContext: 'Plastic bans are active in Karnataka' },
+        { day: 6, action: 'Turn off power strips on sleep', category: 'energy', savingKg: 0.9, difficulty: 'easy', localContext: 'Vampire power draws 10W continuously' },
+        { day: 7, action: 'Plan a completely vegan day', category: 'food', savingKg: 6.5, difficulty: 'medium', localContext: 'Traditional South Indian food has many vegan options' }
+      ],
+      quickWins: [
+        { title: 'LED bulb upgrade', impact: '5 kg CO2 saved per month', howTo: 'Replace old incandescent lights' },
+        { title: 'Cold laundry wash', impact: '8 kg CO2 saved per month', howTo: 'Run washing machine on cold settings' },
+        { title: 'Unplug chargers', impact: '2 kg CO2 saved per month', howTo: 'Switch off charger switches when not in use' }
+      ],
+      monthlyChallenge: {
+        title: 'Namma Cycle commuter',
+        description: 'Cycle to work/study for 10 commutes this month',
+        targetReductionKg: 20,
+        reward: 'Bengaluru Pedal Star'
+      }
+    });
+  }
+});
+
+// 7. Daily challenge proxy
+app.post('/api/gemini/challenge', async (req, res) => {
+  const { today } = req.body;
+  const dayName = new Date().toLocaleDateString('en-IN', { weekday: 'long' });
+
+  const prompt = `
+  Generate ONE eco challenge for a Bengaluru resident for ${dayName}.
+  Return a JSON object conforming exactly to this schema:
+  {
+    "title": "short action title",
+    "description": "specific how-to for Bengaluru",
+    "savingKg": number,
+    "category": "transport" | "food" | "energy" | "shopping",
+    "difficulty": "easy" | "medium" | "hard",
+    "date": "${today || new Date().toISOString().split('T')[0]}"
+  }
+  Make it specific, achievable today, and India-relevant.
+  `;
+
+  try {
+    const ai = getGeminiClient();
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      }
+    });
+
+    const responseText = result.text || '{}';
+    const parsed = JSON.parse(responseText.trim());
+    res.json(parsed);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Gemini challenge generation error, using fallback:', errorMsg);
+
+    // Dynamic local fallback
+    res.json({
+      title: 'Green Commuter Sprint',
+      description: 'Avoid private auto/cabs today; take the Namma Metro or BMTC bus for all travel.',
+      savingKg: 4.2,
+      category: 'transport',
+      difficulty: 'easy',
+      date: today || new Date().toISOString().split('T')[0]
+    });
+  }
+});
+
 // --- Vite setup for Frontend assets integration ---
 async function initializeServer() {
   if (process.env.NODE_ENV !== 'production') {

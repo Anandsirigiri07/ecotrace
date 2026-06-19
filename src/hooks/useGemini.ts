@@ -1,32 +1,9 @@
 import { useState } from 'react';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { Activity, ChatMessage, UserProfile, EcoPlan, ActivityCategory } from '../types';
 import { useAuth } from './useAuth';
 import { rateLimits } from '../utils/rateLimiter';
-import { sanitizeGeminiPrompt } from '../utils/sanitize';
-
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '');
-
-const safetySettings = [
-  {
-    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-];
 
 interface LiveData {
   gridIntensity: number;
@@ -45,102 +22,21 @@ const getEcoAdvisorPlan = async (
   activities: Activity[],
   liveData: LiveData,
   userProfile: UserProfile
-) => {
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-1.5-pro', // NOT flash
-    safetySettings
+): Promise<EcoPlan> => {
+  const response = await fetch('/api/gemini/plan', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ activities, liveData, userProfile }),
   });
 
-  // Calculate category breakdown
-  const byCategory = activities.reduce((acc, a) => {
-    acc[a.category] = (acc[a.category] || 0) + a.co2Kg;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const totalKg = Object.values(byCategory)
-    .reduce((s, v) => s + v, 0);
-
-  const prompt = `
-You are an expert carbon footprint advisor with 
-deep knowledge of Indian lifestyle patterns.
-
-USER PROFILE:
-- Location: Bengaluru, India
-- Diet: ${userProfile.dietPreference}
-- Last 30 days total: ${totalKg.toFixed(2)}kg CO2
-
-EMISSION BREAKDOWN:
-${Object.entries(byCategory)
-  .sort(([,a],[,b]) => b - a)
-  .map(([cat, kg]) => 
-    `- ${cat}: ${kg.toFixed(2)}kg 
-     (${totalKg > 0 ? ((kg/totalKg)*100).toFixed(1) : 0}% of total)`)
-  .join('\n')}
-
-REAL-TIME CONTEXT:
-- Current grid intensity: ${liveData.gridIntensity} kgCO2/kWh
-  (${liveData.gridIndex} — ${
-    liveData.gridIndex === 'high' 
-    ? 'peak hours, coal heavy' 
-    : 'off-peak, more renewables'})
-- Bengaluru weather: ${liveData.weather?.temp || 27}°C, 
-  ${liveData.weather?.condition || 'clear'}
-- India national average: ${liveData.nationalDailyAvgKg}kg/day
-- User vs average: ${
-    totalKg/30 < liveData.nationalDailyAvgKg 
-    ? `${(((liveData.nationalDailyAvgKg - totalKg/30) / 
-         liveData.nationalDailyAvgKg)*100).toFixed(1)}% BETTER`
-    : `${(((totalKg/30 - liveData.nationalDailyAvgKg) / 
-         liveData.nationalDailyAvgKg)*100).toFixed(1)}% WORSE`
-  } than national average
-
-ECOSCOPE ANALYSIS:
-Using formula: max(0, 100 - (annualKg / 4000) * 100)
-User annual projection: ${(totalKg/30*365).toFixed(0)}kg
-EcoScore: ${Math.max(0, Math.round(100 - ((totalKg/30*365) / 4000) * 100))}/100
-
-Generate a PERSONALIZED 7-DAY ECO ACTION PLAN:
-Return ONLY valid JSON, no markdown tags (e.g. no \`\`\`json block, no \`\`\`), just the raw JSON object string:
-{
-  "ecoScore": number,
-  "scoreLabel": "Carbon Hero" | "On Track" | "Needs Work" | "Critical",
-  "weeklyTarget": number,
-  "topInsight": "one powerful sentence about their data",
-  "actions": [
-    {
-      "day": number,
-      "action": "specific action for Bengaluru resident",
-      "category": "transport" | "food" | "energy" | "shopping",
-      "savingKg": number,
-      "difficulty": "easy" | "medium" | "hard",
-      "localContext": "India/Bengaluru specific detail"
-    }
-  ],
-  "quickWins": [
-    {
-      "title": "string",
-      "impact": "X kg CO2 saved per month",
-      "howTo": "specific step for Bengaluru"
-    }
-  ],
-  "monthlyChallenge": {
-    "title": "string",
-    "description": "string", 
-    "targetReductionKg": number,
-    "reward": "badge name if achieved"
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `Server error: ${response.status}`);
   }
-}`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  
-  // Parse and validate JSON
-  try {
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
-  } catch {
-    throw new Error('Gemini returned invalid JSON');
-  }
+  return response.json();
 };
 
 const getCachedOrFreshPlan = async (
@@ -151,7 +47,6 @@ const getCachedOrFreshPlan = async (
 ) => {
   const cacheRef = doc(db, 'users', userId, 'cache', 'ecoplan');
   
-  // Check if user has logged new activities since last cache
   const lastActivityTime = activities[0]?.createdAt 
     ? (activities[0].createdAt instanceof Timestamp 
         ? activities[0].createdAt.toMillis() 
@@ -168,8 +63,6 @@ const getCachedOrFreshPlan = async (
     const cacheAge = Date.now() - generatedAtMillis;
     const sixHours = 6 * 60 * 60 * 1000;
     
-    // Use cache if less than 6 hours old AND 
-    // no new activities since cache was made
     if (cacheAge < sixHours && 
         cached.lastActivityTime === lastActivityTime) {
       console.info('Using Firestore cached eco plan');
@@ -177,23 +70,20 @@ const getCachedOrFreshPlan = async (
     }
   }
   
-  // Generate fresh plan
   const freshPlan = await getEcoAdvisorPlan(
     activities, liveData, userProfile
   );
   
-  // Save to Firestore cache
   await setDoc(cacheRef, {
     plan: freshPlan,
     generatedAt: Timestamp.now(),
     lastActivityTime,
-    activitiesHash: activities.length // simple change detector
+    activitiesHash: activities.length
   });
   
   return freshPlan;
 };
 
-// Static fallback (competitor has this too, we match it)
 const getStaticFallbackPlan = (activities: Activity[]): EcoPlan => ({
   ecoScore: 65,
   scoreLabel: 'On Track',
@@ -222,7 +112,7 @@ const getStaticFallbackPlan = (activities: Activity[]): EcoPlan => ({
 });
 
 export const useGemini = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [plan, setPlan] = useState<EcoPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -251,7 +141,6 @@ export const useGemini = () => {
     }
   };
 
-  // Streaming chat (they don't have this!)
   const streamChat = async (
     message: string,
     history: ChatMessage[],
@@ -271,26 +160,53 @@ export const useGemini = () => {
     setIsStreaming(true);
     setError(null);
     try {
-      const model = genAI.getGenerativeModel({ 
-        model: 'gemini-1.5-pro',
-        safetySettings
-      });
-      
-      const chat = model.startChat({
-        history: history.map(h => ({
-          role: h.role === 'model' ? 'model' : 'user',
-          parts: [{ text: h.content }]
-        })),
-        generationConfig: { maxOutputTokens: 500 }
+      const response = await fetch('/api/gemini/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: history.map(h => ({
+            role: h.role,
+            text: h.content
+          })),
+          userProfile: {
+            country: profile?.country || 'India',
+            streak: profile?.currentStreak || 0,
+            lifestyle: {
+              diet: profile?.dietPreference || 'vegetarian',
+              energySource: 'grid',
+            },
+            totalSavedKg: 0
+          }
+        }),
       });
 
-      const sanitizedMsg = sanitizeGeminiPrompt(message);
-      const result = await chat.sendMessageStream(sanitizedMsg);
-      
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
-        onChunk(text);
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
       }
+
+      const data = await response.json();
+      const text = data.text || '';
+
+      const chars = Array.from(text);
+      let current = '';
+      const chunkSize = Math.max(1, Math.floor(chars.length / 50));
+      let index = 0;
+
+      await new Promise<void>((resolve) => {
+        const interval = setInterval(() => {
+          if (index >= chars.length) {
+            clearInterval(interval);
+            resolve();
+            return;
+          }
+          const nextChunk = chars.slice(index, index + chunkSize).join('');
+          current += nextChunk;
+          index += chunkSize;
+          onChunk(nextChunk);
+        }, 15);
+      });
     } catch (err: unknown) {
       console.error('Stream chat error:', err);
       setError('Streaming chat failed. Showing local suggestion.');
@@ -300,27 +216,46 @@ export const useGemini = () => {
     }
   };
 
-  // Get instant encouraging tip after logging activity
   const getInstantTip = async (
     category: string,
     activityType: string,
     quantity: number,
     unit: string,
     todayTotalCO2: number,
-    userProfile?: unknown
+    userProfile?: any
   ): Promise<string> => {
     setLoading(true);
     setError(null);
 
     try {
-      const model = genAI.getGenerativeModel({ 
-        model: 'gemini-1.5-pro',
-        safetySettings
+      const response = await fetch('/api/gemini/calculate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          category,
+          details: {
+            type: activityType,
+            activityType,
+            quantity,
+            unit
+          },
+          userProfile: userProfile ? {
+            country: userProfile.country,
+            lifestyle: {
+              diet: userProfile.dietPreference
+            }
+          } : undefined
+        })
       });
-      const prompt = `The user just logged a "${category}" activity: ${activityType} (${quantity} ${unit}). Total logged CO2 emitted is ${todayTotalCO2} kg. Generate a 1-sentence specific encouraging eco-insight or alternative suggestion in the Indian/Bengaluru context.`;
-      const sanitizedPrompt = sanitizeGeminiPrompt(prompt);
-      const result = await model.generateContent(sanitizedPrompt);
-      return result.response.text().trim();
+
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      return `${data.alternative} ${data.insight}`;
     } catch (err: unknown) {
       console.error('Gemini calculation error:', err);
       setError('AI is temporarily unavailable, showing local tip instead.');
@@ -330,7 +265,6 @@ export const useGemini = () => {
     }
   };
 
-  // Local static tips for fallbacks
   const getLocalFallbackTip = (activityType: string, quantity: number, unit: string, todayTotal: number): string => {
     if (activityType.includes('car')) {
       return 'Consider carpooling or grouping your errands to reduce total distance. Switching to electric or active transit saves major emissions!';
@@ -347,8 +281,7 @@ export const useGemini = () => {
     return `Your activity logged (${quantity} ${unit}) emitted carbon. Try tracking daily to discover habits you can tweak to stay under the 36.5kg weekly grid limit!`;
   };
 
-  // Helper: check configuration
-  const isAIConfigured = (import.meta.env.VITE_GEMINI_API_KEY || '').trim().length > 0;
+  const isAIConfigured = true;
 
   return { 
     plan, 

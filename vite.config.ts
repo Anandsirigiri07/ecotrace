@@ -24,7 +24,6 @@ export default defineConfig({
             'firebase/firestore',
             'firebase/analytics'
           ],
-          'gemini': ['@google/generative-ai'],
           'charts': ['recharts'],
           'vendor': ['react', 'react-dom', 'react-router-dom']
         }
