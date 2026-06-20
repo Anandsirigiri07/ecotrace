@@ -89,10 +89,6 @@ export function Insights() {
     };
 
     const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
-    setInputVal('');
-
-    // Create placeholder for AI streaming response
     const aiPlaceholderId = Math.random().toString(36).substring(7);
     const aiMsgPlaceholder: ChatMessage = {
       id: aiPlaceholderId,
@@ -101,7 +97,8 @@ export function Insights() {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, aiMsgPlaceholder]);
+    setMessages([...updatedMessages, aiMsgPlaceholder]);
+    setInputVal('');
     trackEvent.chatMessageSent(true);
 
     try {
