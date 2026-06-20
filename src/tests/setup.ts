@@ -22,7 +22,7 @@ interface JestCompat {
   spyOn: <T extends object, K extends keyof T>(
     object: T, 
     method: K
-  ) => ReturnType<typeof vi.spyOn>;
+  ) => unknown;
   clearAllMocks: () => void;
   resetAllMocks: () => void;
   restoreAllMocks: () => void;
@@ -33,7 +33,7 @@ const jestCompat: JestCompat = {
   spyOn: <T extends object, K extends keyof T>(
     object: T, 
     method: K
-  ) => vi.spyOn(object, method as Parameters<typeof vi.spyOn<T, K>>[1]),
+  ) => vi.spyOn(object as never, method as never),
   clearAllMocks: () => vi.clearAllMocks(),
   resetAllMocks: () => vi.resetAllMocks(),
   restoreAllMocks: () => vi.restoreAllMocks(),
