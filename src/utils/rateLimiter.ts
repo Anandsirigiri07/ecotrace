@@ -40,6 +40,10 @@ export const checkRateLimit = (
   return { allowed: true, waitMs: 0 };
 };
 
+/**
+ * Application-specific rate limits configured for user activity.
+ * Sets maximum limits for logs, Gemini calls, and auth attempts.
+ */
 export const rateLimits = {
   activityLog: (uid: string) =>
     checkRateLimit(`log_${uid}`, 10, 60_000),

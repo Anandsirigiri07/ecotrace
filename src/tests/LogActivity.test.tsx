@@ -54,7 +54,7 @@ vi.mock('firebase/analytics', () => ({
   logEvent: vi.fn(),
 }));
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, RenderResult } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
 import LogActivity from '../pages/LogActivity';
@@ -94,7 +94,7 @@ vi.mock('../hooks/useGemini', () => ({
 }));
 
 describe('LogActivity Component Tests', () => {
-  const renderLogActivity = () => {
+  const renderLogActivity = (): RenderResult => {
     return render(
       <ThemeProvider>
         <LiveDataProvider>
