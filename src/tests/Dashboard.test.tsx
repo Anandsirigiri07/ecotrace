@@ -1,3 +1,58 @@
+vi.mock('../services/firebase', () => ({
+  auth: {
+    currentUser: null,
+    onAuthStateChanged: vi.fn(() => () => {}),
+  },
+  db: {
+    type: 'firestore',
+    app: {},
+    toJSON: vi.fn(),
+  },
+  googleProvider: {},
+  analytics: null,
+  goOnline: vi.fn(),
+  goOffline: vi.fn(),
+}));
+
+vi.mock('firebase/app', () => ({
+  initializeApp: vi.fn(() => ({})),
+  getApps: vi.fn(() => []),
+  getApp: vi.fn(() => ({})),
+}));
+
+vi.mock('firebase/auth', () => ({
+  getAuth: vi.fn(() => ({
+    currentUser: null,
+    onAuthStateChanged: vi.fn(() => () => {}),
+  })),
+  GoogleAuthProvider: vi.fn(() => ({})),
+  signInWithPopup: vi.fn(),
+  signOut: vi.fn(),
+  onAuthStateChanged: vi.fn(() => () => {}),
+}));
+
+vi.mock('firebase/firestore', () => ({
+  getFirestore: vi.fn(() => ({})),
+  collection: vi.fn(),
+  doc: vi.fn(),
+  addDoc: vi.fn(),
+  setDoc: vi.fn(),
+  getDoc: vi.fn(() => Promise.resolve({ exists: () => false })),
+  onSnapshot: vi.fn(() => () => {}),
+  query: vi.fn(),
+  where: vi.fn(),
+  orderBy: vi.fn(),
+  serverTimestamp: vi.fn(() => new Date()),
+  updateDoc: vi.fn(),
+  enableIndexedDbPersistence: vi.fn(() => Promise.resolve()),
+  Timestamp: { now: vi.fn(() => ({ toMillis: () => Date.now() })) },
+}));
+
+vi.mock('firebase/analytics', () => ({
+  getAnalytics: vi.fn(),
+  isSupported: vi.fn(() => Promise.resolve(false)),
+  logEvent: vi.fn(),
+}));
 
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';

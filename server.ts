@@ -481,7 +481,7 @@ async function initializeServer() {
 
   // Start Server on 0.0.0.0:3000
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[EcoTrace] Server is active and listening on http://localhost:${PORT}`);
+    // Server started — see Firebase Hosting logs
   });
 }
 
