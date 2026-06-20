@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Car, 
@@ -82,9 +82,9 @@ export function LogActivity() {
   };
 
   const unitLabel = useMemo(() => {
-    const opts = activityOptions[category];
-    const match = opts.find(o => o.value === activityType);
-    return match ? match.unit : '';
+    const options = activityOptions[category];
+    const option = options.find((o) => o.value === activityType);
+    return option ? option.unit : '';
   }, [category, activityType]);
 
   const co2Preview = useMemo(() => {
@@ -111,7 +111,7 @@ export function LogActivity() {
     if (!numQty || numQty <= 0) return;
 
     try {
-      const tip = await getInstantTip(category, activityType, numQty, unitLabel, co2Preview, profile);
+      const tip = await getInstantTip(category, activityType, numQty, unitLabel, co2Preview, profile || undefined);
       setGeneratedTip(tip);
       setSavedCO2(co2Preview);
 
@@ -133,7 +133,7 @@ export function LogActivity() {
   };
 
   return (
-    <main className="max-w-xl mx-auto px-4 py-6" role="main">
+    <main className="max-w-xl mx-auto pb-10 px-4 pt-6">
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => navigate('/dashboard')}

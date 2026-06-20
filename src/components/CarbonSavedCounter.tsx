@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCarbon } from '../hooks/useCarbon';
 import { useLiveData } from '../context/LiveDataContext';
 

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
@@ -119,5 +119,50 @@ describe('Dashboard Component Tests', () => {
     expect(screen.getByText(/Logging Streak/i)).toBeInTheDocument();
     // Two occurrences: 4 days streak and 4 weeks/benchmark etc. The streak itself has value 4.
     expect(screen.getAllByText('4')).toBeDefined();
+  });
+
+  it('renders recent activity logs section', () => {
+    renderDashboard();
+    expect(screen.getByText(/Recent Activity Logs/i)).toBeInTheDocument();
+    // ActivityCard formats car_petrol → "Car Petrol"
+    expect(screen.getByText(/Car Petrol/i)).toBeInTheDocument();
+  });
+
+  it('renders personalized recommendations section', () => {
+    renderDashboard();
+    // The recommendations engine runs on activities and produces recs
+    expect(screen.getByText(/Personalized Recommendations/i)).toBeInTheDocument();
+  });
+
+  it('renders navigation action buttons', () => {
+    renderDashboard();
+    expect(screen.getByRole('button', { name: /Log new carbon activity/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Ask EcoTrace AI/i })).toBeInTheDocument();
+  });
+
+  it('shows EcoScore profile card when activities exist', () => {
+    render(
+      <BrowserRouter>
+        <ThemeProvider>
+          <LiveDataProvider>
+            <Dashboard />
+          </LiveDataProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    );
+    expect(screen.getByText(/ecoscore profile/i)).toBeTruthy();
+  });
+
+  it('shows year in carbon heatmap section', () => {
+    render(
+      <BrowserRouter>
+        <ThemeProvider>
+          <LiveDataProvider>
+            <Dashboard />
+          </LiveDataProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    );
+    expect(screen.getByText(/year in carbon/i)).toBeTruthy();
   });
 });

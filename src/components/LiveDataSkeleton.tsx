@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const LiveDataSkeleton = () => (
   <div className="animate-pulse space-y-3">
     {/* Grid status skeleton */}

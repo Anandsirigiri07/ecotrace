@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import React from 'react';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCarbon } from '../hooks/useCarbon';
-import { collection, addDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, updateDoc } from 'firebase/firestore';
 
 // Global variables to control the mock state of getDoc dynamically per test
 let lastLogDateMock = '2026-06-18';
@@ -48,7 +48,7 @@ vi.mock('../hooks/useQuery', () => ({
     setQueryData: vi.fn(),
     invalidateQueries: vi.fn().mockResolvedValue({})
   },
-  useQuery: vi.fn((key, fn) => {
+  useQuery: vi.fn((_key, _fn) => {
     // Return mock query states
     return { data: [], loading: false, error: null, refetch: vi.fn() };
   }),
@@ -59,7 +59,7 @@ vi.mock('../hooks/useQuery', () => ({
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   addDoc: vi.fn().mockResolvedValue({ id: 'new-activity-id' }),
-  onSnapshot: vi.fn((q, arg2, arg3) => {
+  onSnapshot: vi.fn((_q, arg2, arg3) => {
     const callback = typeof arg2 === 'function' ? arg2 : arg3;
     if (callback) {
       setTimeout(() => {
@@ -89,7 +89,7 @@ vi.mock('firebase/firestore', () => ({
   orderBy: vi.fn(),
   serverTimestamp: vi.fn(() => 'timestamp'),
   doc: vi.fn().mockReturnValue({}),
-  getDoc: vi.fn().mockImplementation(async (ref) => {
+  getDoc: vi.fn().mockImplementation(async (_ref) => {
     if (getDocShouldFail) {
       throw new Error('Firestore read failure');
     }

@@ -8,9 +8,8 @@ import {
   orderBy,
   serverTimestamp,
   doc,
-  updateDoc,
   getDoc,
-  Timestamp,
+  updateDoc,
   FirestoreError
 } from 'firebase/firestore';
 import { useQuery as useTanStackQuery } from '@tanstack/react-query';

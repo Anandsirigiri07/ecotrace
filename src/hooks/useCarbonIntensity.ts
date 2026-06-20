@@ -23,7 +23,7 @@ export const useCarbonIntensity = () => {
         if (!res.ok) {
           throw new Error('Failed to fetch from API');
         }
-        const json = await res.json();
+        await res.json().catch(() => {});
         
         const hour = new Date().getHours();
         const indiaFactor = hour >= 10 && hour <= 20 

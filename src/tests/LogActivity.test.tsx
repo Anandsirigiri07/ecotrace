@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
@@ -103,5 +103,25 @@ describe('LogActivity Component Tests', () => {
     // Verify modal is shown
     expect(screen.getByText(/Activity Logged successfully!/i)).toBeInTheDocument();
     expect(screen.getByText(/Tip: Take the bus!/i)).toBeInTheDocument();
+  });
+
+  it('shows CO2 preview when quantity entered', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    renderLogActivity();
+    
+    const input = screen.getByLabelText(/Quantity/i);
+    // Clear first
+    fireEvent.change(input, { target: { value: '' } });
+    await userEvent.type(input, '15');
+    
+    expect(screen.getByText(/kg co/i)).toBeTruthy();
+  });
+
+  it('category buttons are all rendered', () => {
+    renderLogActivity();
+    expect(screen.getByText(/transit/i)).toBeTruthy();
+    expect(screen.getByText(/diet/i)).toBeTruthy();
+    expect(screen.getByText(/energy/i)).toBeTruthy();
+    expect(screen.getByText(/retail/i)).toBeTruthy();
   });
 });

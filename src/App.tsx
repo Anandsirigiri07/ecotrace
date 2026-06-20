@@ -1,4 +1,4 @@
-import React, { ReactNode, lazy, Suspense } from 'react';
+import { ReactNode, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Leaf } from 'lucide-react';
 import { useAuth } from './hooks/useAuth';

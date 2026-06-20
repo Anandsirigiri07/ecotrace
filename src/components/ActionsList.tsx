@@ -1,4 +1,3 @@
-import React from 'react';
 import { Leaf, Info } from 'lucide-react';
 
 interface ActionItem {

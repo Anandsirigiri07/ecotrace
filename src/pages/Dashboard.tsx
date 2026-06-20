@@ -1,6 +1,6 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, Plus, ArrowRight, Activity, TrendingDown, Leaf } from 'lucide-react';
+import { Plus, ArrowRight, Leaf, TrendingDown, Activity } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useCarbon } from '../hooks/useCarbon';
 import CarbonScoreRing from '../components/CarbonScoreRing';
@@ -20,8 +20,6 @@ import { collection, doc, addDoc, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import DashboardCard from '../components/DashboardCard';
 import SectionHeader from '../components/SectionHeader';
-import StatCard from '../components/StatCard';
-import ImpactCard from '../components/ImpactCard';
 import { generateRecommendations } from '../utils/sustainabilityRecommendations';
 
 // Weather Card Component
@@ -207,20 +205,15 @@ function DailyChallengeCard() {
   );
 }
 
-/**
- * Dashboard page displaying aggregated weekly carbon summaries,
- * air quality values, grid status updates, dynamic challenges, and recent logs.
- */
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading, error: authError } = useAuth();
-  const { activities, summary, loading: carbonLoading, error: carbonError } = useCarbon(user ? user.uid : null);
+  const { activities, loading: carbonLoading, error: carbonError } = useCarbon(user ? user.uid : null);
   const liveData = useLiveData();
   const [seeding, setSeeding] = useState(false);
   const trendRecs = useMemo(() => generateRecommendations(activities), [activities]);
 
   const hasData = activities.length > 0;
-  const monthlyKg = summary?.monthKg ?? 0;
 
   const seedDemoData = async () => {
     if (!user) return;
@@ -543,7 +536,7 @@ export function Dashboard() {
           <DashboardCard className="p-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 bg-orange-50 dark:bg-orange-950/20 text-warningColor rounded-xl flex items-center justify-center font-bold">
-                <Flame size={22} className="fill-current animate-bounce" />
+                <span className="text-xl animate-bounce" role="img" aria-label="flame">🔥</span>
               </div>
               <div>
                 <h4 className="text-xs font-bold text-textPrimary dark:text-white">Logging Streak</h4>
@@ -561,7 +554,6 @@ export function Dashboard() {
         <div className="md:col-span-2 flex flex-col gap-6">
           <EmissionChart activities={activities} />
 
-          {/* Live Data Cards Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Enhanced Grid Status Card */}
             <GridStatusCard />

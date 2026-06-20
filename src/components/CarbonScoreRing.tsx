@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLiveData } from '../context/LiveDataContext';
 import DashboardCard from './DashboardCard';
 import SectionHeader from './SectionHeader';

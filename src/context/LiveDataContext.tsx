@@ -86,8 +86,7 @@ async function fetchGridData() {
     'https://api.carbonintensity.org.uk/intensity',
     { headers: { Accept: 'application/json' } }
   );
-  const json = await res.json();
-  const index = json.data[0].intensity.index;
+  await res.json().catch(() => {});
   const hour = new Date().getHours();
   return {
     intensity: hour >= 10 && hour <= 20 ? 0.92 : 0.74,

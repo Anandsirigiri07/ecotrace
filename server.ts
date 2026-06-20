@@ -9,6 +9,7 @@ import {
   calculateEnergyCO2, 
   calculateShoppingCO2 
 } from './src/utils/carbonCalc.js';
+import { CarbonActivity } from './src/types/index.js';
 
 dotenv.config();
 
@@ -290,10 +291,13 @@ app.post('/api/gemini/plan', async (req, res) => {
   }
 
   // Calculate category breakdown
-  const byCategory = activities.reduce((acc: Record<string, number>, a: any) => {
-    acc[a.category] = (acc[a.category] || 0) + a.co2Kg;
-    return acc;
-  }, {} as Record<string, number>);
+  const byCategory = activities.reduce(
+    (acc: Record<string, number>, a: CarbonActivity) => {
+      acc[a.category] = (acc[a.category] || 0) + a.co2Kg;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   const totalKg = Object.values(byCategory).reduce((s: number, v: number) => s + v, 0);
 

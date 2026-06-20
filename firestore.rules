@@ -2,9 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper function to check authentication status
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
     // Helper function to check ownership
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
     
     match /users/{userId} {
@@ -33,7 +38,10 @@ service cloud.firestore {
       }
 
       match /cache/{cacheId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId)
+                      && request.resource.data.keys().hasAll(['plan', 'generatedAt'])
+                      && request.resource.data.generatedAt == request.time;
       }
     }
   }

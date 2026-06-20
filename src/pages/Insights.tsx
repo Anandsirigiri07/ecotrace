@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Bot, Send, Sparkles } from 'lucide-react';
+import { useState, useMemo, useEffect, FormEvent } from 'react';
+import { Bot, Send } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useCarbon } from '../hooks/useCarbon';
 import { useGemini } from '../hooks/useGemini';
@@ -33,25 +33,7 @@ export function Insights() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputVal, setInputVal] = useState('');
 
-  // 1. Calculate weekly total CO2 for preloading context
-  const weeklyTotal = useMemo(() => {
-    const getPast7DateStrings = () => {
-      const dates = [];
-      for (let i = 0; i < 7; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        dates.push(`${year}-${month}-${day}`);
-      }
-      return dates;
-    };
-    const last7Days = getPast7DateStrings();
-    return activities
-      .filter(act => last7Days.includes(act.date))
-      .reduce((sum, act) => sum + act.co2Kg, 0);
-  }, [activities]);
+
 
   // Generate trend-based recommendations from user's logs
   const trendRecs = useMemo(() => generateRecommendations(activities), [activities]);
@@ -123,7 +105,7 @@ export function Insights() {
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = (e: FormEvent) => {
     e.preventDefault();
     handleSendMessage(inputVal);
   };

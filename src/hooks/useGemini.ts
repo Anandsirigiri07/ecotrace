@@ -65,7 +65,7 @@ const getCachedOrFreshPlan = async (
     
     if (cacheAge < sixHours && 
         cached.lastActivityTime === lastActivityTime) {
-      console.info('Using Firestore cached eco plan');
+      // Cache hit — using stored eco plan
       return cached.plan;
     }
   }
@@ -84,7 +84,7 @@ const getCachedOrFreshPlan = async (
   return freshPlan;
 };
 
-const getStaticFallbackPlan = (activities: Activity[]): EcoPlan => ({
+const getStaticFallbackPlan = (_activities: Activity[]): EcoPlan => ({
   ecoScore: 65,
   scoreLabel: 'On Track',
   weeklyTarget: 32.5,
@@ -142,9 +142,9 @@ export const useGemini = () => {
   };
 
   const streamChat = async (
-    message: string,
+    _message: string,
     history: ChatMessage[],
-    context: { activities: Activity[], liveData: LiveData },
+    _context: { activities: Activity[], liveData: LiveData },
     onChunk: (text: string) => void
   ) => {
     const uid = user?.uid || 'anonymous';
@@ -222,7 +222,7 @@ export const useGemini = () => {
     quantity: number,
     unit: string,
     todayTotalCO2: number,
-    userProfile?: any
+    userProfile?: UserProfile
   ): Promise<string> => {
     setLoading(true);
     setError(null);
@@ -265,7 +265,7 @@ export const useGemini = () => {
     }
   };
 
-  const getLocalFallbackTip = (activityType: string, quantity: number, unit: string, todayTotal: number): string => {
+  const getLocalFallbackTip = (activityType: string, quantity: number, unit: string, _todayTotal: number): string => {
     if (activityType.includes('car')) {
       return 'Consider carpooling or grouping your errands to reduce total distance. Switching to electric or active transit saves major emissions!';
     }
