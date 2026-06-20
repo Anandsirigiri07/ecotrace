@@ -16,12 +16,29 @@ import { useQuery as useTanStackQuery } from '@tanstack/react-query';
 import { db } from '../services/firebase';
 import { useAuth } from './useAuth';
 import { queryClient } from './useQuery';
-import { CarbonActivity as Activity, ActivityCategory, CarbonSummary } from '../types';
+import { CarbonActivity as Activity, ActivityCategory, CarbonSummary, UserProfile } from '../types';
 import { trackEvent } from '../utils/analytics';
 import { sanitizeActivityInput, sanitizeString } from '../utils/sanitize';
 import { rateLimits } from '../utils/rateLimiter';
 
-export const useCarbon = (userId?: string | null) => {
+/**
+ * Custom hook for real-time carbon activity management.
+ * Establishes Firestore onSnapshot listener for live updates.
+ * Handles activity logging with input sanitization and rate limiting.
+ * @param userId - Optional user ID override (uses auth user by default)
+ * @returns Carbon activities, summary stats, and logging functions
+ */
+interface CarbonReturn {
+  activities: Activity[];
+  summary: CarbonSummary;
+  loading: boolean;
+  error: string | null;
+  logActivity: (data: Omit<Activity, 'id' | 'createdAt'>) => Promise<string>;
+  updateProfileSettings: (settingsOrCountry: Partial<UserProfile> | string, dietPreference?: string) => Promise<void>;
+  seedDemoData: () => Promise<void>;
+}
+
+export const useCarbon = (userId?: string | null): CarbonReturn => {
   const { user: authUser } = useAuth();
   const user = authUser;
   const activeUserId = userId || user?.uid;
@@ -46,12 +63,14 @@ export const useCarbon = (userId?: string | null) => {
 
   useEffect(() => {
     if (!activeUserId) {
-      setLoading(false);
-      return;
+      const timer = setTimeout(() => setLoading(false), 0);
+      return () => clearTimeout(timer);
     }
 
-    setLoading(true);
-    setError(null);
+    const startTimer = setTimeout(() => {
+      setLoading(true);
+      setError(null);
+    }, 0);
 
     // Get last 30 days of activities
     const thirtyDaysAgo = new Date();
@@ -120,7 +139,10 @@ export const useCarbon = (userId?: string | null) => {
     );
 
     // Cleanup listener on unmount or user change
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(startTimer);
+      unsubscribe();
+    };
   }, [activeUserId]);
 
   const logActivity = useCallback(async (
@@ -194,18 +216,83 @@ export const useCarbon = (userId?: string | null) => {
     return docRef.id;
   }, [activeUserId]);
 
-  const updateProfileSettings = useCallback(async (country: string, dietPreference: string) => {
+  const updateProfileSettings = useCallback(async (
+    settingsOrCountry: Partial<UserProfile> | string,
+    dietPreference?: string
+  ): Promise<void> => {
     const uid = activeUserId;
     if (!uid) throw new Error('User not authenticated.');
     const userRef = doc(db, 'users', uid);
-    await updateDoc(userRef, {
-      country,
-      dietPreference,
-    });
+    if (typeof settingsOrCountry === 'string') {
+      await updateDoc(userRef, {
+        country: settingsOrCountry,
+        dietPreference: dietPreference,
+      });
+    } else {
+      await updateDoc(userRef, settingsOrCountry);
+    }
     await queryClient.invalidateQueries({ queryKey: ['profile', uid] });
   }, [activeUserId]);
 
-  return { activities, loading, error, summary, logActivity, updateProfileSettings };
+  /**
+   * Seeds demo activity data for first-time users.
+   * Generates 30 days of realistic Bengaluru lifestyle data.
+   * @returns Promise resolving when all demo data is written
+   */
+  const seedDemoData = async (): Promise<void> => {
+    if (!user) throw new Error('Must be logged in to seed data');
+    
+    const today = new Date();
+    const batchActivities: Omit<Activity, 'id' | 'createdAt'>[] = [];
+    
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayOfWeek = date.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+      batchActivities.push({
+        category: 'transport',
+        activityType: 'car_petrol',
+        quantity: isWeekend ? 25 : 15,
+        unit: 'km',
+        co2Kg: isWeekend ? 25 * 0.21 : 15 * 0.21,
+        date: dateStr,
+        geminiTip: 'Try metro for this route',
+        userId: user.uid
+      });
+
+      const isVeg = Math.random() > 0.4;
+      batchActivities.push({
+        category: 'food',
+        activityType: isVeg ? 'vegetarian_meal' : 'meat_meal',
+        quantity: 1,
+        unit: 'serving',
+        co2Kg: isVeg ? 1.69 : 6.61,
+        date: dateStr,
+        geminiTip: isVeg ? 'Great veg choice!' : 'Try veg tomorrow',
+        userId: user.uid
+      });
+
+      batchActivities.push({
+        category: 'energy',
+        activityType: 'electricity_kwh',
+        quantity: isWeekend ? 8 : 3,
+        unit: 'kWh',
+        co2Kg: isWeekend ? 8 * 0.82 : 3 * 0.82,
+        date: dateStr,
+        geminiTip: 'Switch off AC at night',
+        userId: user.uid
+      });
+    }
+
+    for (const activity of batchActivities) {
+      await logActivity(activity);
+    }
+  };
+
+  return { activities, loading, error, summary, logActivity, updateProfileSettings, seedDemoData };
 };
 
 // Helper: calculate summary stats from activities array

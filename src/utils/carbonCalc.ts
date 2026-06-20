@@ -14,11 +14,11 @@ export interface EcoScore {
 }
 
 /**
- * Calculates total carbon emissions from transportation activities.
- * 
- * @param type The type of transport used (e.g. car_petrol, flight, bus, etc.)
- * @param distanceKm The total distance traveled in kilometers.
- * @returns The calculated CO2 emissions in kilograms (defaults to 0 for negative/zero distance).
+ * Calculates CO2 emissions for transport activities
+ * using IPCC-aligned emission factors.
+ * @param type - Transport mode (car_petrol, bus, train, etc.)
+ * @param distanceKm - Distance traveled in kilometers
+ * @returns CO2 emissions in kilograms
  */
 export function calculateTransportCO2(type: string, distanceKm: number): number {
   if (distanceKm <= 0) return 0;
@@ -45,11 +45,10 @@ export function calculateTransportCO2(type: string, distanceKm: number): number 
 }
 
 /**
- * Calculates total carbon emissions from food consumption.
- * 
- * @param type The type of meal or food consumed (e.g. meat_meal, dairy, etc.)
- * @param servings The number of servings consumed.
- * @returns The calculated CO2 emissions in kilograms (defaults to 0 for negative/zero servings).
+ * Calculates CO2 emissions for food consumption.
+ * @param type - Food type (meat_meal, vegetarian_meal, etc.)
+ * @param servings - Number of servings consumed
+ * @returns CO2 emissions in kilograms
  */
 export function calculateFoodCO2(type: string, servings: number): number {
   if (servings <= 0) return 0;
@@ -70,12 +69,11 @@ export function calculateFoodCO2(type: string, servings: number): number {
 }
 
 /**
- * Calculates total carbon emissions from household energy usage.
- * 
- * @param type The type of energy used (e.g. electricity_kwh, lpg_kg, ac_hours)
- * @param quantity The amount consumed (e.g. kWh, kg, or hours)
- * @param customFactor Optional custom multiplier for electricity grid intensity
- * @returns The calculated CO2 emissions in kilograms (defaults to 0 for negative/zero quantities).
+ * Calculates CO2 emissions for energy usage.
+ * @param type - Energy type (electricity_kwh, lpg_kg, ac_hours)
+ * @param quantity - Amount of energy consumed
+ * @param customFactor - Optional live grid intensity factor
+ * @returns CO2 emissions in kilograms
  */
 export function calculateEnergyCO2(type: string, quantity: number, customFactor?: number): number {
   if (quantity <= 0) return 0;
@@ -94,11 +92,10 @@ export function calculateEnergyCO2(type: string, quantity: number, customFactor?
 }
 
 /**
- * Calculates total carbon emissions from retail shopping items.
- * 
- * @param type The type of item purchased (e.g. clothing, electronics, plastic_item)
- * @param quantity The number of items purchased.
- * @returns The calculated CO2 emissions in kilograms (defaults to 0 for negative/zero quantities).
+ * Calculates CO2 emissions for shopping activities.
+ * @param type - Item type (clothing, electronics, plastic_item)
+ * @param quantity - Number of items purchased
+ * @returns CO2 emissions in kilograms
  */
 export function calculateShoppingCO2(type: string, quantity: number): number {
   if (quantity <= 0) return 0;
@@ -117,11 +114,11 @@ export function calculateShoppingCO2(type: string, quantity: number): number {
 }
 
 /**
- * Compiles a comprehensive EcoScore metrics analysis.
- * 
- * @param monthlyKg The user's accumulated carbon footprint for the past 30 days in kg CO2.
- * @param nationalDailyAvgKg The country's daily average emissions (defaults to India avg: 5.21kg).
- * @returns A detailed EcoScore object with ratings, labels, and comparisons.
+ * Calculates personal EcoScore from monthly emissions.
+ * Uses formula: max(0, 100 - (annualKg / 4000) * 100)
+ * @param monthlyKg - Total CO2 in kg over 30 days
+ * @param nationalDailyAvgKg - National daily average (default: India 5.21kg)
+ * @returns EcoScore object with score 0-100, label, colors, and comparisons
  */
 export const calculateEcoScore = (
   monthlyKg: number,

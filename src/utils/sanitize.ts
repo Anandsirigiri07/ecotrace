@@ -1,3 +1,9 @@
+/**
+ * Strips HTML tags and dangerous characters from user input.
+ * Prevents XSS attacks in form submissions.
+ * @param input - Raw string from user input
+ * @returns Sanitized string, max 500 characters
+ */
 export const sanitizeString = (input: string): string => {
   if (typeof input !== 'string') return '';
   return input
@@ -8,6 +14,14 @@ export const sanitizeString = (input: string): string => {
     .slice(0, 500);
 };
 
+/**
+ * Validates and clamps a numeric value within safe bounds.
+ * Returns 0 for NaN, Infinity, or values outside range.
+ * @param input - Raw value to sanitize
+ * @param min - Minimum allowed value (default: 0)
+ * @param max - Maximum allowed value (default: 100000)
+ * @returns Safe numeric value within bounds
+ */
 export const sanitizeNumber = (
   input: unknown,
   min = 0,
@@ -18,6 +32,12 @@ export const sanitizeNumber = (
   return Math.min(Math.max(num, min), max);
 };
 
+/**
+ * Sanitizes user input for Gemini API prompts.
+ * Blocks prompt injection and jailbreak attempts.
+ * @param input - Raw user message
+ * @returns Clean prompt string, max 1000 characters
+ */
 export const sanitizeGeminiPrompt = (
   input: string
 ): string => {
@@ -32,6 +52,13 @@ export const sanitizeGeminiPrompt = (
     .slice(0, 1000);
 };
 
+/**
+ * Validates and sanitizes a complete activity log entry.
+ * Throws if category is invalid. Clamps all numeric values.
+ * @param data - Raw activity data from form submission
+ * @returns Sanitized activity object safe for Firestore write
+ * @throws Error if category is not in allowed list
+ */
 export const sanitizeActivityInput = (data: {
   category: string;
   activityType: string;
@@ -58,9 +85,8 @@ export const sanitizeActivityInput = (data: {
     quantity: sanitizeNumber(data.quantity, 0.01, 10000),
     unit: allowedUnits.includes(data.unit)
       ? data.unit : 'items',
-    co2Kg: sanitizeNumber(data.co2Kg, 0, 10000),
+    co2Kg: sanitizeNumber(data.co2Kg, 0, 100000),
     date: /^\d{4}-\d{2}-\d{2}$/.test(data.date)
-      ? data.date
-      : new Date().toISOString().split('T')[0]
+      ? data.date : new Date().toISOString().split('T')[0]
   };
 };

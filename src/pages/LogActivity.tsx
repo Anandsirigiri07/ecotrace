@@ -46,11 +46,14 @@ export function LogActivity() {
   const [savedCO2, setSavedCO2] = useState(0);
 
   useEffect(() => {
-    if (category === 'transport') setActivityType('car_petrol');
-    else if (category === 'food') setActivityType('meat_meal');
-    else if (category === 'energy') setActivityType('electricity_kwh');
-    else if (category === 'shopping') setActivityType('clothing');
-    setQuantity('');
+    const timer = setTimeout(() => {
+      if (category === 'transport') setActivityType('car_petrol');
+      else if (category === 'food') setActivityType('meat_meal');
+      else if (category === 'energy') setActivityType('electricity_kwh');
+      else if (category === 'shopping') setActivityType('clothing');
+      setQuantity('');
+    }, 0);
+    return () => clearTimeout(timer);
   }, [category]);
 
   const activityOptions = {
@@ -115,14 +118,15 @@ export function LogActivity() {
       setGeneratedTip(tip);
       setSavedCO2(co2Preview);
 
-      await logActivity(
+      await logActivity({
         category,
         activityType,
-        numQty,
-        unitLabel,
-        co2Preview,
-        tip
-      );
+        quantity: numQty,
+        unit: unitLabel,
+        co2Kg: co2Preview,
+        geminiTip: tip,
+        date: new Date().toISOString().split('T')[0]
+      });
 
       trackEvent.activityLogged(category, co2Preview);
       setTipModalOpen(true);

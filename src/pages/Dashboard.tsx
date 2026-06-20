@@ -16,8 +16,7 @@ import { useAirQuality } from '../hooks/useAirQuality';
 import { GridStatusCard } from '../components/GridStatusCard';
 import { CarbonSavedCounter } from '../components/CarbonSavedCounter';
 import { useDailyChallenge } from '../hooks/useDailyChallenge';
-import { collection, doc, addDoc, setDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
+
 import DashboardCard from '../components/DashboardCard';
 import SectionHeader from '../components/SectionHeader';
 import { generateRecommendations } from '../utils/sustainabilityRecommendations';
@@ -215,77 +214,12 @@ export function Dashboard() {
 
   const hasData = activities.length > 0;
 
-  const seedDemoData = async () => {
-    if (!user) return;
+  const { seedDemoData } = useCarbon();
+  const handleSeedDemo = async () => {
     setSeeding(true);
     try {
-      const userActivitiesRef = collection(db, 'users', user.uid, 'activities');
-      const batchPromises = [];
-      
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        
-        // Food daily activity
-        const foodType = i % 3 === 0 ? 'meat_meal' : i % 3 === 1 ? 'vegetarian_meal' : 'vegan_meal';
-        const foodCO2 = foodType === 'meat_meal' ? 6.61 : foodType === 'vegetarian_meal' ? 1.69 : 1.05;
-        batchPromises.push(addDoc(userActivitiesRef, {
-          category: 'food',
-          activityType: foodType,
-          quantity: 2,
-          unit: 'servings',
-          co2Kg: foodCO2 * 2,
-          date: dateStr,
-          createdAt: new Date(d.getTime() - 1000 * 60 * 60),
-          userId: user.uid,
-          geminiTip: 'Eating plant-based meals significantly reduces your footprint. Keep it up!'
-        }));
-
-        // Transport on 5 out of 7 days
-        if (i % 7 !== 0 && i % 7 !== 6) {
-          const transType = i % 2 === 0 ? 'car_petrol' : 'bus';
-          const distance = i % 2 === 0 ? 15 : 10;
-          const transCO2 = transType === 'car_petrol' ? distance * 0.21 : distance * 0.089;
-          batchPromises.push(addDoc(userActivitiesRef, {
-            category: 'transport',
-            activityType: transType,
-            quantity: distance,
-            unit: 'km',
-            co2Kg: transCO2,
-            date: dateStr,
-            createdAt: new Date(d.getTime() - 1000 * 60 * 30),
-            userId: user.uid,
-            geminiTip: transType === 'car_petrol' ? 'Consider carpooling or using public transit next time!' : 'Great job taking the bus! You saved emissions.'
-          }));
-        }
-
-        // Energy once a week
-        if (i % 7 === 1) {
-          batchPromises.push(addDoc(userActivitiesRef, {
-            category: 'energy',
-            activityType: 'electricity_kwh',
-            quantity: 30,
-            unit: 'kWh',
-            co2Kg: 30 * 0.82,
-            date: dateStr,
-            createdAt: d,
-            userId: user.uid,
-            geminiTip: 'Optimize your cooling systems and switch off idle electronics to reduce electricity use.'
-          }));
-        }
-      }
-
-      await Promise.all(batchPromises);
-
-      // Update user streak in user profile info
-      const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, {
-        currentStreak: 15,
-        longestStreak: 15,
-        lastLogDate: new Date().toISOString().split('T')[0]
-      }, { merge: true });
-
+      await seedDemoData();
+      alert('✅ Demo data loaded!');
       window.location.reload();
     } catch {
       alert('Failed to seed demo data. Please try again.');
@@ -447,7 +381,7 @@ export function Dashboard() {
             </p>
           </div>
           <button
-            onClick={seedDemoData}
+            onClick={handleSeedDemo}
             disabled={seeding}
             className="bg-blue-600 text-white dark:bg-blue-700 px-4 py-2 rounded-full text-xs font-semibold hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap cursor-pointer disabled:opacity-50 border-none"
             aria-label="Load demo data to see dashboard features"

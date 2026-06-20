@@ -1,3 +1,8 @@
+/**
+ * Safe Google Analytics 4 event tracking helpers.
+ * All calls are wrapped in try-catch to prevent crashes
+ * in ad-blocked or tracking-restricted browsers.
+ */
 import { logEvent } from 'firebase/analytics';
 import { analytics } from '../services/firebase';
 

@@ -20,7 +20,14 @@ export interface DailyChallenge {
  * @param userId The authenticated user's ID
  * @returns {challenge, loading} The active daily challenge and loading state.
  */
-export const useDailyChallenge = (userId: string) => {
+interface DailyChallengeReturn {
+  challenge: DailyChallenge | null;
+  loading: boolean;
+  error?: string | null;
+  refetch?: (() => void) | undefined;
+}
+
+export const useDailyChallenge = (userId: string): DailyChallengeReturn => {
   const today = new Date().toISOString().split('T')[0];
 
   const { data: challenge, loading, error, refetch } = useQuery<DailyChallenge | null>(
@@ -75,7 +82,7 @@ export const useDailyChallenge = (userId: string) => {
     { staleTime: 86400000 } // Keep for 24 hours
   );
 
-  return { challenge, loading, error, refetch };
+  return { challenge, loading, error: error ? error.message : null, refetch };
 };
 
 export default useDailyChallenge;

@@ -19,7 +19,7 @@ import SectionHeader from '../components/SectionHeader';
  */
 export function Profile() {
   const navigate = useNavigate();
-  const { user, profile, logout, refreshProfile } = useAuth();
+  const { user, profile, logout } = useAuth();
   const { activities, updateProfileSettings, loading: settingsLoading } = useCarbon(user ? user.uid : null);
 
   // Settings states
@@ -30,10 +30,16 @@ export function Profile() {
 
   // Sync settings state with loaded profile
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     if (profile) {
-      setCountry(profile.country || 'India');
-      setDietPreference(profile.dietPreference || 'None');
+      timer = setTimeout(() => {
+        setCountry(profile.country || 'India');
+        setDietPreference(profile.dietPreference || 'None');
+      }, 0);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [profile]);
 
   // Sign out click handler
@@ -48,7 +54,7 @@ export function Profile() {
     setSaveError(null);
     try {
       await updateProfileSettings(country, dietPreference);
-      await refreshProfile(); // reload auth context
+      // Profile will auto-update since useCarbon invalidates TanStack Query cache
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {

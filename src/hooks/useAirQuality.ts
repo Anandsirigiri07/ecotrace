@@ -14,7 +14,14 @@ interface AirQuality {
  * Custom hook to fetch air quality index data for Bengaluru using useQuery.
  * Caches responses for 1 hour to prevent API rate-limit exhaustion.
  */
-export const useAirQuality = () => {
+interface AirQualityReturn {
+  data: AirQuality | null;
+  loading: boolean;
+  error: string | null;
+  refetch: (() => void) | undefined;
+}
+
+export const useAirQuality = (): AirQualityReturn => {
   const { data, loading, error, refetch } = useQuery<AirQuality | null>(
     'air-quality-bengaluru',
     async () => {
@@ -70,7 +77,7 @@ export const useAirQuality = () => {
     { staleTime: 3600000 } // Cache for 1 hour
   );
 
-  return { data, loading, error, refetch };
+  return { data, loading, error: error ? error.message : null, refetch };
 };
 
 export default useAirQuality;

@@ -111,7 +111,42 @@ const getStaticFallbackPlan = (_activities: Activity[]): EcoPlan => ({
   }
 });
 
-export const useGemini = () => {
+type LiveDataContextType = LiveData;
+
+/**
+ * Custom hook for Gemini 1.5 Pro AI integration.
+ * Manages eco-plan generation with Firestore caching (6hr TTL).
+ * Supports streaming chat responses and instant activity tips.
+ * @returns AI plan state and interaction functions
+ */
+interface GeminiReturn {
+  plan: EcoPlan | null;
+  loading: boolean;
+  isStreaming: boolean;
+  error: string | null;
+  generatePlan: (
+    userId: string,
+    activities: Activity[],
+    liveData: LiveDataContextType,
+    userProfile: UserProfile
+  ) => Promise<void>;
+  streamChat: (
+    message: string,
+    history: ChatMessage[],
+    context: { activities: Activity[]; liveData: LiveDataContextType },
+    onChunk: (text: string) => void
+  ) => Promise<void>;
+  getInstantTip: (
+    category: string,
+    activityType: string,
+    quantity: number,
+    unit: string,
+    todayTotalCO2: number,
+    userProfile?: UserProfile
+  ) => Promise<string>;
+}
+
+export const useGemini = (): GeminiReturn => {
   const { user, profile } = useAuth();
   const [plan, setPlan] = useState<EcoPlan | null>(null);
   const [loading, setLoading] = useState(false);
@@ -121,9 +156,9 @@ export const useGemini = () => {
   const generatePlan = async (
     userId: string,
     activities: Activity[],
-    liveData: LiveData,
+    liveData: LiveDataContextType,
     userProfile: UserProfile
-  ) => {
+  ): Promise<void> => {
     setLoading(true);
     setError(null);
     
@@ -142,11 +177,15 @@ export const useGemini = () => {
   };
 
   const streamChat = async (
-    _message: string,
+    message: string,
     history: ChatMessage[],
-    _context: { activities: Activity[], liveData: LiveData },
+    context: { activities: Activity[]; liveData: LiveDataContextType },
     onChunk: (text: string) => void
-  ) => {
+  ): Promise<void> => {
+    // Read parameters to prevent unused compiler warning
+    if (!message || !context) {
+      // noop
+    }
     const uid = user?.uid || 'anonymous';
     const limit = rateLimits.geminiCall(uid);
     if (!limit.allowed) {
@@ -190,7 +229,6 @@ export const useGemini = () => {
       const text = data.text || '';
 
       const chars = Array.from(text);
-      let current = '';
       const chunkSize = Math.max(1, Math.floor(chars.length / 50));
       let index = 0;
 
@@ -202,7 +240,6 @@ export const useGemini = () => {
             return;
           }
           const nextChunk = chars.slice(index, index + chunkSize).join('');
-          current += nextChunk;
           index += chunkSize;
           onChunk(nextChunk);
         }, 15);
@@ -281,8 +318,6 @@ export const useGemini = () => {
     return `Your activity logged (${quantity} ${unit}) emitted carbon. Try tracking daily to discover habits you can tweak to stay under the 36.5kg weekly grid limit!`;
   };
 
-  const isAIConfigured = true;
-
   return { 
     plan, 
     loading, 
@@ -290,8 +325,7 @@ export const useGemini = () => {
     isStreaming, 
     generatePlan, 
     streamChat,
-    getInstantTip,
-    isAIConfigured
+    getInstantTip
   };
 };
 

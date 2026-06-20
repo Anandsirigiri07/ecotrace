@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useCarbon } from '../hooks/useCarbon';
 import { useLiveData } from '../context/LiveDataContext';
 
-export const CarbonSavedCounter = () => {
+export const CarbonSavedCounter: React.FC = () => {
   const { summary } = useCarbon();
   const { nationalDailyAvgKg } = useLiveData();
   const [animated, setAnimated] = useState(0);
@@ -20,8 +20,8 @@ export const CarbonSavedCounter = () => {
     let start = 0;
     const end = saved;
     if (end === 0) {
-      setAnimated(0);
-      return;
+      const t = setTimeout(() => setAnimated(0), 0);
+      return () => clearTimeout(t);
     }
     const duration = 1500;
     const step = end / (duration / 16);

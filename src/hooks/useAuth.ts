@@ -12,7 +12,25 @@ import { auth, db, googleProvider } from '../services/firebase';
 import { queryClient } from './useQuery';
 import { UserProfile } from '../types';
 
-export const useAuth = () => {
+/**
+ * Custom hook for Firebase Authentication management.
+ * Handles Google Sign-In, profile bootstrapping, and auth state.
+ * @returns Current user, profile data, and auth functions
+ */
+interface AuthReturn {
+  user: User | null;
+  profile: UserProfile | null;
+  loading: boolean;
+  error: string | null;
+  signIn: () => Promise<void>;
+  signOut: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
+  loginAsDeveloper: () => void;
+  updateProfile: (data: Partial<UserProfile>) => Promise<void>;
+}
+
+export const useAuth = (): AuthReturn => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +109,22 @@ export const useAuth = () => {
     }
   };
 
+  const loginAsDeveloper = () => {
+    setUser({
+      uid: 'dev-user-123',
+      displayName: 'Developer',
+      email: 'dev@ecotrace.org',
+      photoURL: null,
+    } as User);
+  };
+
+  const updateProfile = async (data: Partial<UserProfile>) => {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.uid);
+    await setDoc(userRef, data, { merge: true });
+    await refreshProfile();
+  };
+
   return { 
     user, 
     profile, 
@@ -100,7 +134,8 @@ export const useAuth = () => {
     signOut, 
     loginWithGoogle: signIn, 
     logout: signOut,
-    refreshProfile 
+    loginAsDeveloper,
+    updateProfile
   };
 };
 

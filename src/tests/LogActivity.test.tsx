@@ -145,14 +145,15 @@ describe('LogActivity Component Tests', () => {
 
     await waitFor(() => {
       expect(mockGetInstantTip).toHaveBeenCalled();
-      expect(mockLogActivity).toHaveBeenCalledWith(
-        'transport',
-        'car_petrol',
-        10,
-        'km',
-        2.1,
-        'Tip: Take the bus!'
-      );
+      expect(mockLogActivity).toHaveBeenCalledWith({
+        category: 'transport',
+        activityType: 'car_petrol',
+        quantity: 10,
+        unit: 'km',
+        co2Kg: 2.1,
+        geminiTip: 'Tip: Take the bus!',
+        date: expect.any(String)
+      });
     });
 
     // Verify modal is shown

@@ -5,6 +5,14 @@ interface RateLimit {
 
 const store = new Map<string, RateLimit>();
 
+/**
+ * Checks if a request is within rate limit bounds.
+ * Uses in-memory sliding window per key.
+ * @param key - Unique identifier for rate limit bucket
+ * @param maxRequests - Maximum requests allowed in window
+ * @param windowMs - Time window in milliseconds
+ * @returns Object with allowed boolean and waitMs remaining
+ */
 export const checkRateLimit = (
   key: string,
   maxRequests: number,

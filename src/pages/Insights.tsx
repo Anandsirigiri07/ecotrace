@@ -11,6 +11,8 @@ import DashboardCard from '../components/DashboardCard';
 import SectionHeader from '../components/SectionHeader';
 import { generateRecommendations } from '../utils/sustainabilityRecommendations';
 
+const generateId = (): string => Math.random().toString(36).substring(7);
+
 /**
  * Insights component showing AI carbon recommendations and the chat assistant.
  * Utilizes Gemini 1.5 Pro with responsive layouts and full Dark Mode styling.
@@ -64,14 +66,14 @@ export function Insights() {
 
     // Create user message
     const userMsg: ChatMessage = {
-      id: Math.random().toString(36).substring(7),
+      id: generateId(),
       role: 'user',
       content: textToSend,
       timestamp: new Date()
     };
 
     const updatedMessages = [...messages, userMsg];
-    const aiPlaceholderId = Math.random().toString(36).substring(7);
+    const aiPlaceholderId = generateId();
     const aiMsgPlaceholder: ChatMessage = {
       id: aiPlaceholderId,
       role: 'model',

@@ -18,7 +18,7 @@ export function InsightChat({ messages, loading }: InsightChatProps) {
   // Helper parser for basic markdown elements (*bold* or **bold**, lists, and newlines)
   const parseMarkdown = (text: string) => {
     return text.split('\n').map((line, idx) => {
-      let trimmed = line.trim();
+      const trimmed = line.trim();
       
       // Render bullet list items
       if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {

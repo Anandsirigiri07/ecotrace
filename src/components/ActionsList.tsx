@@ -1,3 +1,4 @@
+import React from 'react';
 import { Leaf, Info } from 'lucide-react';
 
 interface ActionItem {
@@ -8,7 +9,7 @@ interface ActionItem {
   co2SavedKg: number;
 }
 
-export function ActionsList() {
+export const ActionsList: React.FC = () => {
   const actions: ActionItem[] = [
     {
       id: 'act1',

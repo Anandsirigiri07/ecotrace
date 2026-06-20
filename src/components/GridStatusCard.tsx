@@ -1,3 +1,4 @@
+import React from 'react';
 import { useLiveData } from '../context/LiveDataContext';
 import DashboardCard from './DashboardCard';
 
@@ -5,7 +6,7 @@ import DashboardCard from './DashboardCard';
  * GridStatusCard displays the real-time status of the India Electricity Grid,
  * showing the peak/off-peak periods and recommending carbon reduction actions.
  */
-export const GridStatusCard = () => {
+export const GridStatusCard: React.FC = () => {
   const { gridIntensity, gridIndex } = useLiveData();
   const hour = new Date().getHours();
   const isPeak = hour >= 10 && hour <= 20;

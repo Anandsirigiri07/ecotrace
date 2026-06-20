@@ -11,7 +11,13 @@ interface CarbonIntensityData {
  * Custom hook to get carbon intensity metrics using useQuery caching.
  * Leverages cached responses for 30 minutes.
  */
-export const useCarbonIntensity = () => {
+interface CarbonIntensityReturn {
+  data: CarbonIntensityData;
+  loading: boolean;
+  getLabel: () => { text: string; tip: string; color: string };
+}
+
+export const useCarbonIntensity = (): CarbonIntensityReturn => {
   const { data, loading } = useQuery<CarbonIntensityData>(
     'carbon-intensity',
     async () => {
