@@ -23,7 +23,7 @@ export interface DailyChallenge {
 export const useDailyChallenge = (userId: string) => {
   const today = new Date().toISOString().split('T')[0];
 
-  const { data: challenge, loading } = useQuery<DailyChallenge | null>(
+  const { data: challenge, loading, error, refetch } = useQuery<DailyChallenge | null>(
     `challenge-${userId}-${today}`,
     async () => {
       if (!userId) return null;
@@ -75,7 +75,7 @@ export const useDailyChallenge = (userId: string) => {
     { staleTime: 86400000 } // Keep for 24 hours
   );
 
-  return { challenge, loading };
+  return { challenge, loading, error, refetch };
 };
 
 export default useDailyChallenge;

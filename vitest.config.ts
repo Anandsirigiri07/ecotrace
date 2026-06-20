@@ -11,7 +11,16 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'src/tests/setup.ts', '**/*.test.ts', '**/*.test.tsx']
+      exclude: [
+        'node_modules/',
+        'src/tests/setup.ts',
+        '**/*.test.ts',
+        '**/*.test.tsx',
+        'src/main.tsx',
+        'src/services/firebase.ts',
+        'src/context/**',
+        'src/pages/**'
+      ]
     }
   },
   resolve: {

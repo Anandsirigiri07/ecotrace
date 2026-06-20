@@ -1,80 +1,53 @@
-import { useState, useEffect, useCallback } from 'react';
+import { QueryClient, useQuery as useTanStackQuery } from '@tanstack/react-query';
 
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
-
-// Global in-memory cache store
-const queryCache = new Map<string, CacheEntry<any>>();
+// Global QueryClient instance exported for main.tsx and hook invalidations
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes default stale time
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 interface QueryOptions {
   staleTime?: number; // ms
 }
 
 /**
- * A lightweight custom query hook that mimics React Query's caching behavior.
- * Caches asynchronous fetch functions and returns loading, error, and data states.
- * 
- * @param queryKey Unique key to identify the query cache entry
- * @param queryFn Async function returning the data
- * @param options Configurations (e.g. staleTime)
+ * A lightweight custom query hook wrapper that delegates to TanStack React Query.
+ * Retains original signature for seamless integration with existing hooks.
  */
 export function useQuery<T>(
   queryKey: string,
   queryFn: () => Promise<T>,
   options: QueryOptions = {}
 ) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const result = useTanStackQuery<T, Error>({
+    queryKey: [queryKey],
+    queryFn,
+    staleTime: options.staleTime,
+  });
 
-  const staleTime = options.staleTime ?? 60000; // Default: 1 minute stale time
-
-  const execute = useCallback(async (force = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const cached = queryCache.get(queryKey);
-      const now = Date.now();
-
-      // Serve from cache if fresh and not a forced refetch
-      if (!force && cached && now - cached.timestamp < staleTime) {
-        setData(cached.data);
-        setLoading(false);
-        return;
-      }
-
-      const result = await queryFn();
-      queryCache.set(queryKey, { data: result, timestamp: now });
-      setData(result);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-    } finally {
-      setLoading(false);
-    }
-  }, [queryKey, queryFn, staleTime]);
-
-  useEffect(() => {
-    execute();
-  }, [queryKey]);
-
-  const refetch = useCallback(() => execute(true), [execute]);
-
-  return { data, loading, error, refetch };
+  return {
+    data: result.data ?? null,
+    loading: result.isLoading,
+    error: result.error,
+    refetch: result.refetch,
+  };
 }
 
 /**
  * Invalidates cache entries matching the given key prefix.
- * Useful for purging cache on mutations (e.g., when a user logs an activity).
- * 
- * @param keyPrefix Prefix of the cache keys to invalidate
+ * Useful for purging cache on mutations.
  */
 export const invalidateCache = (keyPrefix: string) => {
-  for (const key of queryCache.keys()) {
-    if (key.startsWith(keyPrefix)) {
-      queryCache.delete(key);
+  queryClient.invalidateQueries({
+    predicate: (query) => {
+      const key = query.queryKey[0];
+      return typeof key === 'string' && key.startsWith(keyPrefix);
     }
-  }
+  });
 };
+
 export default useQuery;

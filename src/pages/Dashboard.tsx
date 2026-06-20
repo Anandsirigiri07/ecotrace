@@ -22,6 +22,7 @@ import DashboardCard from '../components/DashboardCard';
 import SectionHeader from '../components/SectionHeader';
 import StatCard from '../components/StatCard';
 import ImpactCard from '../components/ImpactCard';
+import { generateRecommendations } from '../utils/sustainabilityRecommendations';
 
 // Weather Card Component
 interface WeatherCardProps {
@@ -56,10 +57,32 @@ function WeatherCard({ weather }: WeatherCardProps) {
 
 // Air Quality Card Component
 function AirQualityCard() {
-  const { data, loading, error } = useAirQuality();
+  const { data, loading, error, refetch } = useAirQuality();
 
   if (loading) return <CardSkeleton height="h-24" />;
-  if (error || !data) return null;
+  
+  if (error || !data) {
+    return (
+      <DashboardCard className="p-4 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between h-36">
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 tracking-wide">
+              AIR QUALITY &bull; BENGALURU
+            </span>
+          </div>
+          <p className="text-xs text-textSecondary dark:text-gray-400 leading-normal">
+            Failed to load live air quality reports.
+          </p>
+        </div>
+        <button
+          onClick={() => refetch && refetch()}
+          className="mt-2 text-[10px] bg-gray-150 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-705 text-gray-700 dark:text-gray-300 py-1 px-3 rounded-full font-bold self-start cursor-pointer active:scale-95 transition-all border-none"
+        >
+          🔄 Retry AQI
+        </button>
+      </DashboardCard>
+    );
+  }
 
   return (
     <DashboardCard 
@@ -103,11 +126,31 @@ function AirQualityCard() {
 // Daily Challenge Card Component
 function DailyChallengeCard() {
   const { user } = useAuth();
-  const { challenge, loading } = useDailyChallenge(user?.uid || '');
+  const { challenge, loading, error, refetch } = useDailyChallenge(user?.uid || '');
   const [accepted, setAccepted] = useState(false);
 
   if (loading) return <CardSkeleton height="h-32" />;
-  if (!challenge) return null;
+  
+  if (error || !challenge) {
+    return (
+      <DashboardCard className="p-4 border-dashed border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/10 flex flex-col justify-between h-40">
+        <div>
+          <span className="text-xs font-bold text-gray-500 dark:text-gray-400 tracking-wide block mb-2">
+            🎯 TODAY'S ECO CHALLENGE
+          </span>
+          <p className="text-xs text-textSecondary dark:text-gray-400 font-medium">
+            Could not fetch today's challenge.
+          </p>
+        </div>
+        <button
+          onClick={() => refetch && refetch()}
+          className="bg-green-750 hover:bg-green-800 text-white dark:bg-accent dark:text-gray-900 py-1.5 px-4 rounded-full font-semibold text-xs mt-2 self-start cursor-pointer active:scale-95 transition-all border-none"
+        >
+          🔄 Retry Challenge
+        </button>
+      </DashboardCard>
+    );
+  }
 
   const categoryEmoji: Record<string, string> = {
     transport: '🚌',
@@ -174,6 +217,7 @@ export function Dashboard() {
   const { activities, summary, loading: carbonLoading, error: carbonError } = useCarbon(user ? user.uid : null);
   const liveData = useLiveData();
   const [seeding, setSeeding] = useState(false);
+  const trendRecs = useMemo(() => generateRecommendations(activities), [activities]);
 
   const hasData = activities.length > 0;
   const monthlyKg = summary?.monthKg ?? 0;
@@ -526,10 +570,27 @@ export function Dashboard() {
             <AirQualityCard />
           </div>
 
-          {liveData.weather === null
-            ? <CardSkeleton height="h-20" />
-            : <WeatherCard weather={liveData.weather} />
-          }
+          {liveData.loading ? (
+            <CardSkeleton height="h-20" />
+          ) : liveData.weather ? (
+            <WeatherCard weather={liveData.weather} />
+          ) : (
+            <DashboardCard className="p-5 flex items-center justify-between border-dashed border-gray-300 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/10">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 rounded-xl flex items-center justify-center shrink-0 font-bold">
+                  <span className="text-xl">🌤️</span>
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-textPrimary dark:text-white">
+                    Weather Green Tip (Offline)
+                  </h4>
+                  <p className="text-[10px] text-textSecondary dark:text-gray-400 font-semibold leading-relaxed mt-0.5">
+                    Weather data unavailable. Cycle or walk short commutes under 2km to save ~2.1kg CO₂.
+                  </p>
+                </div>
+              </div>
+            </DashboardCard>
+          )}
 
           {/* Heatmap */}
           <ActivityHeatmap activities={activities} />
@@ -625,6 +686,50 @@ export function Dashboard() {
           </div>
         )}
       </section>
+
+      {/* Personalized Recommendations */}
+      {hasData && trendRecs.length > 0 && (
+        <section className="space-y-4" aria-label="Personalized sustainability recommendations">
+          <SectionHeader 
+            title="Personalized Recommendations 📈" 
+            level={3}
+            subtitle="Analyzed from your historical logging trends to optimize savings"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {trendRecs.map((rec) => {
+              const diffColor = rec.difficulty === 'easy' ? 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950/20' : 
+                                rec.difficulty === 'medium' ? 'text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-950/20' : 
+                                'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950/20';
+              return (
+                <DashboardCard 
+                  key={rec.id} 
+                  className="p-5 flex flex-col justify-between space-y-3 border border-gray-150 dark:border-gray-700/60"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-primary dark:bg-gray-700 text-white uppercase tracking-wider">
+                        {rec.category}
+                      </span>
+                      <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${diffColor}`}>
+                        {rec.difficulty}
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold text-textPrimary dark:text-white leading-snug">{rec.title}</h4>
+                    <p className="text-[10px] text-textSecondary dark:text-gray-400 font-medium leading-relaxed">{rec.action}</p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-750 pt-2">
+                    <span className="text-[9px] font-bold text-textSecondary dark:text-gray-400 uppercase tracking-wide">Potential Reduction</span>
+                    <span className="text-xs font-extrabold text-secondary dark:text-accent">
+                      -{rec.savingKg.toFixed(1)} kg CO₂
+                    </span>
+                  </div>
+                </DashboardCard>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

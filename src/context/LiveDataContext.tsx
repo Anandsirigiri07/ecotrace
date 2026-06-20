@@ -12,6 +12,8 @@ interface LiveData {
   } | null;
   nationalDailyAvgKg: number;
   lastUpdated: Date;
+  loading: boolean;
+  weatherError: string | null;
 }
 
 const LiveDataContext = createContext<LiveData>({
@@ -19,7 +21,9 @@ const LiveDataContext = createContext<LiveData>({
   gridIndex: 'moderate',
   weather: null,
   nationalDailyAvgKg: 5.21,
-  lastUpdated: new Date()
+  lastUpdated: new Date(),
+  loading: true,
+  weatherError: null
 });
 
 export const LiveDataProvider = ({ children }: { children: ReactNode }) => {
@@ -28,16 +32,23 @@ export const LiveDataProvider = ({ children }: { children: ReactNode }) => {
     gridIndex: 'moderate', 
     weather: null,
     nationalDailyAvgKg: 5.21,
-    lastUpdated: new Date()
+    lastUpdated: new Date(),
+    loading: true,
+    weatherError: null
   });
 
   useEffect(() => {
     const fetchAll = async () => {
+      setLiveData(prev => ({ ...prev, loading: true, weatherError: null }));
       const [grid, weather, worldBank] = await Promise.allSettled([
         fetchGridData(),
         fetchWeather(),
         fetchNationalAverage()
       ]);
+
+      const wError = weather.status === 'rejected' 
+        ? weather.reason instanceof Error ? weather.reason.message : String(weather.reason)
+        : null;
 
       setLiveData({
         gridIntensity: grid.status === 'fulfilled' 
@@ -48,7 +59,9 @@ export const LiveDataProvider = ({ children }: { children: ReactNode }) => {
           ? weather.value : null,
         nationalDailyAvgKg: worldBank.status === 'fulfilled'
           ? worldBank.value : 5.21,
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
+        loading: false,
+        weatherError: wError
       });
     };
 

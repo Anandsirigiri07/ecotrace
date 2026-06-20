@@ -13,8 +13,10 @@ import {
   Timestamp,
   FirestoreError
 } from 'firebase/firestore';
+import { useQuery as useTanStackQuery } from '@tanstack/react-query';
 import { db } from '../services/firebase';
 import { useAuth } from './useAuth';
+import { queryClient } from './useQuery';
 import { CarbonActivity as Activity, ActivityCategory, CarbonSummary } from '../types';
 import { trackEvent } from '../utils/analytics';
 import { sanitizeActivityInput, sanitizeString } from '../utils/sanitize';
@@ -24,14 +26,23 @@ export const useCarbon = (userId?: string | null) => {
   const { user: authUser } = useAuth();
   const user = authUser;
   const activeUserId = userId || user?.uid;
-  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<CarbonSummary>({
-    todayKg: 0,
-    weekKg: 0,
-    monthKg: 0,
-    streak: 0
+
+  // Retrieve activities list from TanStack React Query cache
+  const { data: activities = [] } = useTanStackQuery<Activity[], Error>({
+    queryKey: ['activities', activeUserId],
+    queryFn: () => queryClient.getQueryData<Activity[]>(['activities', activeUserId]) || [],
+    enabled: !!activeUserId,
+    staleTime: Infinity,
+  });
+
+  // Retrieve summary statistics from TanStack React Query cache
+  const { data: summary = { todayKg: 0, weekKg: 0, monthKg: 0, streak: 0 } } = useTanStackQuery<CarbonSummary, Error>({
+    queryKey: ['summary', activeUserId],
+    queryFn: () => queryClient.getQueryData<CarbonSummary>(['summary', activeUserId]) || { todayKg: 0, weekKg: 0, monthKg: 0, streak: 0 },
+    enabled: !!activeUserId,
+    staleTime: Infinity,
   });
 
   useEffect(() => {
@@ -72,8 +83,6 @@ export const useCarbon = (userId?: string | null) => {
           ...doc.data() as Omit<Activity, 'id'>
         }));
         
-        setActivities(acts);
-        
         // Fetch current streak from profile to include in summary
         let currentStreak = 0;
         try {
@@ -88,7 +97,11 @@ export const useCarbon = (userId?: string | null) => {
 
         const calculated = calculateSummary(acts);
         calculated.streak = currentStreak;
-        setSummary(calculated);
+
+        // Synchronize real-time snapshot data into the React Query cache
+        queryClient.setQueryData(['activities', activeUserId], acts);
+        queryClient.setQueryData(['summary', activeUserId], calculated);
+
         setLoading(false);
         setError(null);
       },
@@ -190,6 +203,7 @@ export const useCarbon = (userId?: string | null) => {
       country,
       dietPreference,
     });
+    await queryClient.invalidateQueries({ queryKey: ['profile', uid] });
   }, [activeUserId]);
 
   return { activities, loading, error, summary, logActivity, updateProfileSettings };

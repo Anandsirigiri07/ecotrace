@@ -13,7 +13,11 @@ service cloud.firestore {
                     && (request.resource.data.currentStreak == null || (request.resource.data.currentStreak is int && request.resource.data.currentStreak >= 0))
                     && (request.resource.data.longestStreak == null || (request.resource.data.longestStreak is int && request.resource.data.longestStreak >= 0))
                     && (request.resource.data.country == null || request.resource.data.country is string)
-                    && (request.resource.data.dietPreference == null || request.resource.data.dietPreference is string);
+                    && (request.resource.data.dietPreference == null || request.resource.data.dietPreference is string)
+                    && (request.resource.data.email == null || request.resource.data.email is string)
+                    && (request.resource.data.displayName == null || request.resource.data.displayName is string)
+                    && (request.resource.data.photoURL == null || request.resource.data.photoURL is string)
+                    && (request.resource.data.lastLogDate == null || request.resource.data.lastLogDate is string);
 
       match /activities/{activityId} {
         allow read: if isOwner(userId);

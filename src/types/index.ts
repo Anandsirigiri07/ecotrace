@@ -22,6 +22,7 @@ export interface CarbonActivity {
   date: string; // YYYY-MM-DD
   createdAt: unknown; // Firestore Timestamp
   geminiTip: string;
+  userId?: string;
 }
 
 export interface ChatMessage {

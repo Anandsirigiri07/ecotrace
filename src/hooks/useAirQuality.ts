@@ -15,7 +15,7 @@ interface AirQuality {
  * Caches responses for 1 hour to prevent API rate-limit exhaustion.
  */
 export const useAirQuality = () => {
-  const { data, loading, error } = useQuery<AirQuality | null>(
+  const { data, loading, error, refetch } = useQuery<AirQuality | null>(
     'air-quality-bengaluru',
     async () => {
       const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
@@ -70,7 +70,7 @@ export const useAirQuality = () => {
     { staleTime: 3600000 } // Cache for 1 hour
   );
 
-  return { data, loading, error };
+  return { data, loading, error, refetch };
 };
 
 export default useAirQuality;

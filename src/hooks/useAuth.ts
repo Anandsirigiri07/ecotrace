@@ -7,26 +7,28 @@ import {
   AuthError
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { useQuery as useTanStackQuery } from '@tanstack/react-query';
 import { auth, db, googleProvider } from '../services/firebase';
+import { queryClient } from './useQuery';
 import { UserProfile } from '../types';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProfile = async (uid: string) => {
-    try {
-      const userRef = doc(db, 'users', uid);
+  // React Query caching layer for user profile Firestore interaction
+  const { data: profile = null, refetch: refreshProfile } = useTanStackQuery<UserProfile | null, Error>({
+    queryKey: ['profile', user?.uid],
+    queryFn: async () => {
+      if (!user?.uid) return null;
+      const userRef = doc(db, 'users', user.uid);
       const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        setProfile(snap.data() as UserProfile);
-      }
-    } catch (err) {
-      console.error('Error fetching user profile:', err);
-    }
-  };
+      return snap.exists() ? (snap.data() as UserProfile) : null;
+    },
+    enabled: !!user?.uid,
+    staleTime: 1000 * 60 * 15, // 15 mins profile caching
+  });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(
@@ -37,15 +39,15 @@ export const useAuth = () => {
           try {
             // Create/update user profile in Firestore
             await ensureUserProfile(firebaseUser);
-            await fetchProfile(firebaseUser.uid);
             setUser(firebaseUser);
+            // Invalidate the cache to ensure we pull fresh profile data
+            await queryClient.invalidateQueries({ queryKey: ['profile', firebaseUser.uid] });
           } catch (err: unknown) {
             console.error('Error during auth state change profile sync:', err);
             setError(err instanceof Error ? err.message : String(err));
           }
         } else {
           setUser(null);
-          setProfile(null);
         }
         setLoading(false);
       },
@@ -86,12 +88,6 @@ export const useAuth = () => {
       await firebaseSignOut(auth);
     } catch (err) {
       console.error('Sign out error:', err);
-    }
-  };
-
-  const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.uid);
     }
   };
 
