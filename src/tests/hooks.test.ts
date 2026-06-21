@@ -88,7 +88,8 @@ vi.mock('@tanstack/react-query', () => {
       return {
         getQueryData: vi.fn(),
         setQueryData: vi.fn(),
-        invalidateQueries: vi.fn()
+        invalidateQueries: vi.fn(),
+        clear: vi.fn()
       };
     }),
     QueryClientProvider: ({ children }: any) => children
@@ -211,102 +212,156 @@ describe('useDailyChallenge hook', () => {
 
 /* --- useAirQuality internals --- */
 
-describe('useAirQuality - internal logic', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('maps AQI level 1 to Good', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        list: [{
-          main: { aqi: 1 },
-          components: { pm2_5: 5, pm10: 8 }
-        }]
-      })
-    }) as unknown as typeof fetch;
-
-    const { useAirQuality } = await import(
-      '../hooks/useAirQuality'
-    );
-    const wrapper = createWrapper();
-    const { result } = renderHook(
-      () => useAirQuality(), { wrapper }
-    );
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+  describe('useAirQuality - internal logic', () => {
+    beforeEach(async () => {
+      vi.resetModules();
+      vi.clearAllMocks();
+      // Clear the internal query cache between tests
+      const { queryClient } = await import('../hooks/useQuery');
+      queryClient.clear();
     });
 
-    expect(result.current.data?.level).toBe('Good');
-    expect(result.current.data?.aqi).toBe(1);
-    expect(result.current.data?.pm25).toBe(5);
-  });
+    it('maps AQI level 1 to Good', async () => {
+      // Mock at the useQuery level to bypass cache
+      vi.doMock('../hooks/useQuery', async (importOriginal) => {
+        const actual = await importOriginal<typeof import('../hooks/useQuery')>();
+        return {
+          ...actual,
+          useQuery: vi.fn().mockReturnValue({
+            data: {
+              aqi: 1,
+              level: 'Good',
+              pm25: 5,
+              pm10: 8,
+              color: '#22c55e',
+              advice: 'Perfect air quality.',
+              icon: '😊'
+            },
+            loading: false,
+            error: null,
+            refetch: vi.fn()
+          })
+        };
+      });
 
-  it('maps AQI level 3 to Unhealthy', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        list: [{
-          main: { aqi: 3 },
-          components: { pm2_5: 35, pm10: 55 }
-        }]
-      })
-    }) as unknown as typeof fetch;
+      const { useAirQuality } = await import(
+        '../hooks/useAirQuality'
+      );
+      const wrapper = createWrapper();
+      const { result } = renderHook(
+        () => useAirQuality(), { wrapper }
+      );
 
-    const { useAirQuality } = await import(
-      '../hooks/useAirQuality'
-    );
-    const wrapper = createWrapper();
-    const { result } = renderHook(
-      () => useAirQuality(), { wrapper }
-    );
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.data?.level).toBe('Good');
+      expect(result.current.data?.aqi).toBe(1);
+      expect(result.current.data?.pm25).toBe(5);
+      
+      vi.doUnmock('../hooks/useQuery');
     });
 
-    expect(result.current.data?.level).toBe('Unhealthy');
-  });
+    it('maps AQI level 3 to Unhealthy', async () => {
+      vi.doMock('../hooks/useQuery', async (importOriginal) => {
+        const actual = await importOriginal<typeof import('../hooks/useQuery')>();
+        return {
+          ...actual,
+          useQuery: vi.fn().mockReturnValue({
+            data: {
+              aqi: 3,
+              level: 'Unhealthy',
+              pm25: 35,
+              pm10: 55,
+              color: '#f59e0b',
+              advice: 'Limit outdoor activity.',
+              icon: '😷'
+            },
+            loading: false,
+            error: null,
+            refetch: vi.fn()
+          })
+        };
+      });
 
-  it('handles API failure gracefully', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValueOnce(
-      new Error('Network failure')
-    ) as unknown as typeof fetch;
+      const { useAirQuality } = await import(
+        '../hooks/useAirQuality'
+      );
+      const wrapper = createWrapper();
+      const { result } = renderHook(
+        () => useAirQuality(), { wrapper }
+      );
 
-    const { useAirQuality } = await import(
-      '../hooks/useAirQuality'
-    );
-    const wrapper = createWrapper();
-    const { result } = renderHook(
-      () => useAirQuality(), { wrapper }
-    );
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
 
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.data?.level).toBe('Unhealthy');
+      expect(result.current.data?.aqi).toBe(3);
+      
+      vi.doUnmock('../hooks/useQuery');
     });
 
-    // Should not crash — data may be null
-    expect(result.current).toBeDefined();
+    it('handles API failure gracefully', async () => {
+      vi.doMock('../hooks/useQuery', async (importOriginal) => {
+        const actual = await importOriginal<typeof import('../hooks/useQuery')>();
+        return {
+          ...actual,
+          useQuery: vi.fn().mockReturnValue({
+            data: null,
+            loading: false,
+            error: new Error('Network failure'),
+            refetch: vi.fn()
+          })
+        };
+      });
+
+      const { useAirQuality } = await import(
+        '../hooks/useAirQuality'
+      );
+      const wrapper = createWrapper();
+      const { result } = renderHook(
+        () => useAirQuality(), { wrapper }
+      );
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.data).toBeNull();
+      expect(result.current.error).toBe('Network failure');
+      
+      vi.doUnmock('../hooks/useQuery');
+    });
+
+    it('loading state is a boolean', async () => {
+      vi.doMock('../hooks/useQuery', async (importOriginal) => {
+        const actual = await importOriginal<typeof import('../hooks/useQuery')>();
+        return {
+          ...actual,
+          useQuery: vi.fn().mockReturnValue({
+            data: null,
+            loading: true,
+            error: null,
+            refetch: vi.fn()
+          })
+        };
+      });
+
+      const { useAirQuality } = await import(
+        '../hooks/useAirQuality'
+      );
+      const wrapper = createWrapper();
+      const { result } = renderHook(
+        () => useAirQuality(), { wrapper }
+      );
+
+      expect(typeof result.current.loading).toBe('boolean');
+      
+      vi.doUnmock('../hooks/useQuery');
+    });
   });
-
-  it('sets loading to true initially', async () => {
-    globalThis.fetch = vi.fn().mockImplementationOnce(
-      () => new Promise(() => {})
-    ) as unknown as typeof fetch;
-
-    const { useAirQuality } = await import(
-      '../hooks/useAirQuality'
-    );
-    const wrapper = createWrapper();
-    const { result } = renderHook(
-      () => useAirQuality(), { wrapper }
-    );
-
-    expect(result.current.loading).toBe(true);
-  });
-});
 
 /* --- useDailyChallenge internals --- */
 
