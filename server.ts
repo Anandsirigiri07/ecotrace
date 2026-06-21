@@ -291,7 +291,7 @@ app.post('/api/gemini/plan', async (req, res) => {
   }
 
   // Calculate category breakdown
-  const byCategory = activities.reduce(
+  const byCategory: Record<string, number> = (activities as CarbonActivity[]).reduce(
     (acc: Record<string, number>, a: CarbonActivity) => {
       acc[a.category] = (acc[a.category] || 0) + a.co2Kg;
       return acc;
@@ -299,7 +299,7 @@ app.post('/api/gemini/plan', async (req, res) => {
     {} as Record<string, number>
   );
 
-  const totalKg = Object.values(byCategory).reduce((s: number, v: number) => s + v, 0);
+  const totalKg: number = Object.values(byCategory).reduce((s: number, v: number) => s + v, 0);
 
   const prompt = `
   You are an expert carbon footprint advisor with deep knowledge of Indian lifestyle patterns.
