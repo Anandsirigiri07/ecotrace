@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
+import { UserProfile } from '../types/index';
 
 // Mock Firebase
 vi.mock('../services/firebase', () => ({
@@ -121,10 +122,10 @@ describe('useQuery hook', () => {
   it('returns data and refetch', async () => {
     const { useQuery } = await import('../hooks/useQuery');
     const { result } = renderHook(() => 
-      useQuery<string>({ 
-        queryKey: ['test'], 
-        queryFn: async () => 'hello' 
-      })
+      useQuery<string>(
+        'test', 
+        async () => 'hello' 
+      )
     );
     expect(result.current).toBeDefined();
   });
@@ -510,11 +511,14 @@ describe('useGemini - internal logic', () => {
           { 
             displayName: 'Test', 
             email: 'test@test.com',
+            photoURL: null,
             country: 'India',
             dietPreference: 'vegetarian',
             currentStreak: 0,
-            longestStreak: 0
-          }
+            longestStreak: 0,
+            joinedAt: null,
+            lastLogDate: null
+          } as UserProfile
         );
       } catch {
         // expected to handle error
