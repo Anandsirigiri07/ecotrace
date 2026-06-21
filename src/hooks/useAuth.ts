@@ -13,9 +13,13 @@ import { queryClient } from './useQuery';
 import { UserProfile } from '../types';
 
 /**
- * Custom hook for Firebase Authentication management.
- * Handles Google Sign-In, profile bootstrapping, and auth state.
- * @returns Current user, profile data, and auth functions
+ * Custom hook for Firebase Authentication 
+ * state management in EcoTrace.
+ * Handles Google Sign-In via popup, Firestore
+ * profile bootstrapping on first login, and
+ * persistent auth state across sessions.
+ * @returns AuthReturn with user, profile,
+ *   loading state, error, and auth functions
  */
 interface AuthReturn {
   user: User | null;

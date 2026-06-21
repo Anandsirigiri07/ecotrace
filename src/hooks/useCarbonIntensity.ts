@@ -8,8 +8,10 @@ interface CarbonIntensityData {
 }
 
 /**
- * Custom hook to get carbon intensity metrics using useQuery caching.
- * Leverages cached responses for 30 minutes.
+ * Custom hook for real-time India electricity grid carbon intensity data.
+ * Adjusts intensity based on peak/off-peak hours (peak: 0.92 kgCO2/kWh, off-peak: 0.74).
+ * Refreshes every 30 minutes automatically.
+ * @returns CarbonIntensityReturn with intensity data, loading state, and getLabel() helper
  */
 interface CarbonIntensityReturn {
   data: CarbonIntensityData;

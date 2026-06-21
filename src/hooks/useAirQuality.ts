@@ -11,8 +11,10 @@ interface AirQuality {
 }
 
 /**
- * Custom hook to fetch air quality index data for Bengaluru using useQuery.
+ * Custom hook to fetch live air quality index data for Bengaluru via OpenWeatherMap API.
  * Caches responses for 1 hour to prevent API rate-limit exhaustion.
+ * @returns AirQualityReturn object containing data (AQI, PM2.5, PM10, level, advice),
+ *   loading state, error message, and refetch fn
  */
 interface AirQualityReturn {
   data: AirQuality | null;

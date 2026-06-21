@@ -114,10 +114,15 @@ const getStaticFallbackPlan = (_activities: Activity[]): EcoPlan => ({
 type LiveDataContextType = LiveData;
 
 /**
- * Custom hook for Gemini 1.5 Pro AI integration.
- * Manages eco-plan generation with Firestore caching (6hr TTL).
- * Supports streaming chat responses and instant activity tips.
- * @returns AI plan state and interaction functions
+ * Custom hook for Google Gemini 1.5 Pro AI 
+ * integration in EcoTrace.
+ * Manages 7-day eco-plan generation with 
+ * Firestore caching (6hr TTL, invalidated on 
+ * new activity). Supports streaming chat 
+ * responses and instant activity tips.
+ * @returns GeminiReturn with plan state,
+ *   loading/streaming flags, error message,
+ *   generatePlan(), streamChat(), getInstantTip()
  */
 interface GeminiReturn {
   plan: EcoPlan | null;
